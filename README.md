@@ -1,1 +1,1 @@
-# Senior-Design-Project-Insert-actual-project-name-
+# MuseEase
