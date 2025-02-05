@@ -4,15 +4,15 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allows manual execution from GitHub Actions UI
+  workflow_dispatch:  
 
 jobs:
   hello-world:
-    runs-on: windows-latest  # Use Windows instead of Ubuntu
+    runs-on: windows-latest 
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4  # Clones the repo
+        uses: actions/checkout@v4  
       
       - name: Set up Python
         uses: actions/setup-python@v4
