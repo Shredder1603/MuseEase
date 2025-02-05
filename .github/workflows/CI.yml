@@ -1,22 +1,23 @@
-# This workflow will triage pull requests and apply a label based on the
-# paths that are modified in the pull request.
-#
-# To use this workflow, you will need to set up a .github/labeler.yml
-# file with configuration.  For more information, see:
-# https://github.com/actions/labeler
+name: Hello World Test
 
-name: Labeler
-on: [pull_request_target]
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allows manual execution from GitHub Actions UI
 
 jobs:
-  label:
-
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
+  hello-world:
+    runs-on: windows-latest  # Use Windows instead of Ubuntu
 
     steps:
-    - uses: actions/labeler@v4
-      with:
-        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Checkout Repository
+        uses: actions/checkout@v4  # Clones the repo
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Run Hello World Script
+        run: python hello.py
