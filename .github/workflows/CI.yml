@@ -1,23 +1,63 @@
-name: Hello World Test
+name: Build and Release Windows App
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:  
+  workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
-  hello-world:
-    runs-on: windows-latest 
+  build:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4  
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+        uses: actions/checkout@v3
 
-      - name: Run Hello World Script
-        run: python hello.py
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Build Application
+        run: dotnet build --configuration Release
+
+      - name: Publish Application
+        run: dotnet publish -c Release -r win-x64 --self-contained -o ./publish
+
+      - name: Package into Installer (Optional)
+        run: |
+          mkdir installer
+          iscc installer_script.iss  # If using Inno Setup for installation packaging
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-app
+          path: ./publish
+
+  release:
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-app
+          path: ./publish
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./publish/*.exe
+          tag_name: v1.0.${{ github.run_number }}
+          release_name: "Release v1.0.${{ github.run_number }}"
+          body: "Latest release of Windows App"
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
