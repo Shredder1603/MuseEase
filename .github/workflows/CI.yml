@@ -47,16 +47,16 @@ jobs:
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
         with:
-          name: mypyqtapp
+          name: museease
           path: dist/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/MyPyQtApp.exe
+          files: dist/MuseEase.exe
           tag_name: v0.0.${{ github.run_number }}
           release_name: "PyQt App v1.0.${{ github.run_number }}"
-          body: "Latest release of MyPyQtApp"
+          body: "Latest release of MuseEase"
           draft: false
           prerelease: false
         env:
