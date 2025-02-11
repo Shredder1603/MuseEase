@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
 
     steps:
@@ -39,21 +39,57 @@ jobs:
           name: museease
           path: dist/MuseEase.exe
 
-  release:
-    needs: build
-    runs-on: windows-latest
+  build-macos:
+    runs-on: macos-latest
 
     steps:
-      - name: Download Build Artifact
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install PyQt6 py2app
+
+      - name: Build Executable with py2app (macOS)
+        run: |
+          python setup.py py2app
+
+      - name: Upload Build Artifact (macOS)
+        uses: actions/upload-artifact@v4
+        with:
+          name: museease-macos
+          path: dist/MuseEase.app
+
+  release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Build Artifact (Windows)
         uses: actions/download-artifact@v4
         with:
-          name: museease
+          name: museease-windows
+          path: dist/
+
+      - name: Download Build Artifact (macOS)
+        uses: actions/download-artifact@v4
+        with:
+          name: museease-macos
           path: dist/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/MuseEase.exe
+          files: |
+            dist/MuseEase.exe
+            dist/MuseEase.app.zip
           tag_name: v0.0.${{ github.run_number }}
           release_name: "PyQt App v1.0.${{ github.run_number }}"
           body: "Latest release of MuseEase"
