@@ -63,7 +63,7 @@ jobs:
 
       - name: zip the .app file
         run: |
-          zip -r MuseEase.app.zip MuseEase.app
+          zip -r MuseEase.app.zip . -i MuseEase.app
 
       - name: Upload Build Artifact (macOS)
         uses: actions/upload-artifact@v4
