@@ -67,6 +67,10 @@ jobs:
           name: museease-macos
           path: dist/MuseEase.app
 
+      - name: list directories
+        run: |
+          ls -R dist
+
   release:
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
