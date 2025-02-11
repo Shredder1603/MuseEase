@@ -61,16 +61,15 @@ jobs:
         run: |
           python setup.py py2app
 
+      - name: zip the .app file
+        run: |
+          zip -r MuseEase.app.zip MuseEase.app
+
       - name: Upload Build Artifact (macOS)
         uses: actions/upload-artifact@v4
         with:
           name: museease-macos
-          path: dist/MuseEase.app
-
-      - name: zip the .app file
-        run: |
-          cd dist
-          zip -r MuseEase.app.zip MuseEase.app
+          path: dist/MuseEase.app.zip
 
   release:
     needs: [build-windows, build-macos]
