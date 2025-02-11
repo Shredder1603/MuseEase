@@ -36,7 +36,7 @@ jobs:
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: museease
+          name: museease-windows
           path: dist/MuseEase.exe
 
   build-macos:
