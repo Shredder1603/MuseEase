@@ -8,9 +8,11 @@ class View(QMainWindow, QWidget):
 
     def __init__(self):
         super().__init__()
+        # Load the UI
         ui_path = os.path.join(os.path.dirname(__file__), 'UI/MainMenu.ui')
         uic.loadUi(ui_path, self)
 
+        # Set up the exit button functionality
         self.exit_button = getattr(self, "exit_button")
         self.exit_button.clicked.connect(self.on_exit_requested)
         self.exit_requested_callback = None
@@ -22,14 +24,17 @@ class View(QMainWindow, QWidget):
         self.bg_label = QLabel(self)
         self.bg_label.setScaledContents(True)
 
+        # Get the path of the background image relative to the UI file
+        bg_image_path = os.path.join(os.path.dirname(ui_path), 'background.jpg')
+
         # Load and scale the background image
-        self.bg_pixmap = QPixmap("C:/Users/owens/PycharmProjects/Senior Design/MuseEase/MVP/View/UI/background.jpg")
+        self.bg_pixmap = QPixmap(bg_image_path)
         self.update_background()
 
         # Ensure the QLabel is behind all other widgets
         self.bg_label.lower()
 
-    # HANDLE WINDOW RESIZING
+    # Handle window resizing
     def resizeEvent(self, event):
         """Resize the background dynamically when the window is resized."""
         self.update_background()
@@ -41,7 +46,7 @@ class View(QMainWindow, QWidget):
         scaled_pixmap = self.bg_pixmap.scaled(self.width(), self.height())
         self.bg_label.setPixmap(scaled_pixmap)
 
-    # EXIT PROGRAM CALL AND RESPONSE
+    # Exit program call and response
     def set_exit_callback(self, callback):
         self.exit_requested_callback = callback
 
@@ -51,4 +56,3 @@ class View(QMainWindow, QWidget):
 
     def execute_exit(self):
         self.close()
-
