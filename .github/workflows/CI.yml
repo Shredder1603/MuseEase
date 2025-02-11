@@ -67,9 +67,10 @@ jobs:
           name: museease-macos
           path: dist/MuseEase.app
 
-      - name: list directories
+      - name: zip the .app file
         run: |
-          ls -R dist
+          cd dist
+          zip -r MuseEase.app.zip MuseEase.app
 
   release:
     needs: [build-windows, build-macos]
@@ -93,7 +94,7 @@ jobs:
         with:
           files: |
             dist/MuseEase.exe
-            dist/MuseEase.app
+            dist/MuseEase.app.zip
           tag_name: v0.0.${{ github.run_number }}
           release_name: "PyQt App v1.0.${{ github.run_number }}"
           body: "Latest release of MuseEase"
