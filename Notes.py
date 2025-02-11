@@ -107,23 +107,33 @@ class MainWindow(QMainWindow):
         
         self.base_frequencies = {
             'C': 261.63,
+            'C#': 277.18,
             'D': 293.66,
+            'D#': 311.13,
             'E': 329.63,
             'F': 349.23,
+            'F#': 369.99,
             'G': 392.00,
+            'G#': 415.30,
             'A': 440.00,
+            'A#': 466.16,
             'B': 493.88
         }
         
         # Connect note buttons.
         note_buttons = {
-            'akey': 'A',
-            'bkey': 'B',
             'ckey': 'C',
+            'c#key': 'C#',
             'dkey': 'D',
+            'd#key': 'D#',
             'ekey': 'E',
             'fkey': 'F',
-            'gkey': 'G'
+            'f#key': 'F#',
+            'gkey': 'G',
+            'g#key': 'G#',
+            'akey': 'A',
+            'a#key': 'A#',
+            'bkey': 'B'
         }
         for btn, note in note_buttons.items():
             button = getattr(self, btn)
@@ -226,13 +236,18 @@ class MainWindow(QMainWindow):
         if event.isAutoRepeat():
             return
         key_map = {
-            Qt.Key.Key_A: 'A',
-            Qt.Key.Key_B: 'B',
-            Qt.Key.Key_C: 'C',
-            Qt.Key.Key_D: 'D',
-            Qt.Key.Key_E: 'E',
+            Qt.Key.Key_A: 'C',
+            Qt.Key.Key_W: 'C#',
+            Qt.Key.Key_S: 'D',
+            Qt.Key.Key_E: 'D#',
+            Qt.Key.Key_D: 'E',
             Qt.Key.Key_F: 'F',
-            Qt.Key.Key_G: 'G'
+            Qt.Key.Key_T: 'F#',
+            Qt.Key.Key_G: 'G',
+            Qt.Key.Key_Y: 'G#',
+            Qt.Key.Key_H: 'A',
+            Qt.Key.Key_U: 'A#',
+            Qt.Key.Key_J: 'B'
         }
         if note := key_map.get(event.key()):
             if note not in self.active_notes:
@@ -250,13 +265,18 @@ class MainWindow(QMainWindow):
         if event.isAutoRepeat():
             return
         key_map = {
-            Qt.Key.Key_A: 'A',
-            Qt.Key.Key_B: 'B',
-            Qt.Key.Key_C: 'C',
-            Qt.Key.Key_D: 'D',
-            Qt.Key.Key_E: 'E',
+            Qt.Key.Key_A: 'C',
+            Qt.Key.Key_W: 'C#',
+            Qt.Key.Key_S: 'D',
+            Qt.Key.Key_E: 'D#',
+            Qt.Key.Key_D: 'E',
             Qt.Key.Key_F: 'F',
-            Qt.Key.Key_G: 'G'
+            Qt.Key.Key_T: 'F#',
+            Qt.Key.Key_G: 'G',
+            Qt.Key.Key_Y: 'G#',
+            Qt.Key.Key_H: 'A',
+            Qt.Key.Key_U: 'A#',
+            Qt.Key.Key_J: 'B'
         }
         if note := key_map.get(event.key()):
             if note in self.active_notes:
