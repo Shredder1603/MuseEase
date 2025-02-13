@@ -30,7 +30,7 @@ jobs:
           pip install pytest pytest-qt numpy sounddevice PyQt6
 
       - name: Run Automated Tests
-        run: pytest --tb=short --disable-warnings
+        run: pytest automatic_test.py --tb=short --disable-warnings
 
 
   build-windows:
