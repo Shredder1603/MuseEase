@@ -9,6 +9,14 @@ EXPECTED_FREQUENCIES = {
     'G#': 415.30, 'A': 440.00, 'A#': 466.16, 'B': 493.88
 }
 
+# Map keyboard keys to note names
+KEY_MAP = {
+    Qt.Key.Key_A: 'C', Qt.Key.Key_W: 'C#', Qt.Key.Key_S: 'D',
+    Qt.Key.Key_E: 'D#', Qt.Key.Key_D: 'E', Qt.Key.Key_F: 'F',
+    Qt.Key.Key_T: 'F#', Qt.Key.Key_G: 'G', Qt.Key.Key_Y: 'G#',
+    Qt.Key.Key_H: 'A', Qt.Key.Key_U: 'A#', Qt.Key.Key_J: 'B'
+}
+
 class MockHandler:
     '''
     Simulate note handling logic.
@@ -50,7 +58,7 @@ def test_key_to_note_mapping(note_handler, capsys):
     Ensure key presses match expected note names and frequencies.
     '''
     
-    for key, expected_note in EXPECTED_FREQUENCIES.items():
+    for key, expected_note in KEY_MAP.items():
         note, freq = note_handler.keyPressEvent(key)
         expected_freq = expected_note, EXPECTED_FREQUENCIES[expected_note] * (2 ** (note_handler.current_octave - 4))
         
