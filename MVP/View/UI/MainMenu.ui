@@ -78,7 +78,7 @@ QPushButton:hover {
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="new_button">
+       <widget class="QPushButton" name="open_file_button">
         <property name="font">
          <font>
           <family>Arial Rounded MT Bold</family>

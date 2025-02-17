@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QLabel
+from PyQt6.QtWidgets import QMainWindow, QWidget, QLabel, QFileDialog
 from PyQt6.QtGui import QPixmap
 import os
 from PyQt6 import uic
@@ -11,7 +11,10 @@ class View(QMainWindow, QWidget):
         # Load the UI
         ui_path = os.path.join(os.path.dirname(__file__), 'UI/MainMenu.ui')
         uic.loadUi(ui_path, self)
-
+        
+        self.open_file_button = getattr(self, "open_file_button")
+        self.open_file_button.clicked.connect(self.open_user_file)
+        
         # Set up the exit button functionality
         self.exit_button = getattr(self, "exit_button")
         self.exit_button.clicked.connect(self.on_exit_requested)
@@ -56,3 +59,10 @@ class View(QMainWindow, QWidget):
 
     def execute_exit(self):
         self.close()
+        
+    def open_user_file(self):
+        """Open a file dialog and handle file selection."""
+        file, _ = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*)")
+        if file:
+            # For demonstration purposes, print the file path
+            print(f"File selected: {file}")
