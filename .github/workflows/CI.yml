@@ -4,15 +4,15 @@ on:
   push:
     branches:
       - main
-  
-  workflow_dispatch:  # Allows manual triggering
+
+  workflow_dispatch: # Allows manual triggering
 
 permissions:
   contents: write
 
 jobs:
   test:
-    runs-on: windows-latest  # Running tests on Windows for consistency
+    runs-on: windows-latest # Running tests on Windows for consistency
 
     steps:
       - name: Checkout Repository
@@ -31,7 +31,6 @@ jobs:
 
       - name: Run Automated Tests
         run: pytest automatic_test.py --tb=short --disable-warnings
-
 
   build-windows:
     needs: test
@@ -52,7 +51,6 @@ jobs:
           pip install -r requirements.txt
           pip install PyQt6 pyinstaller
           pip install pytest pytest-qt numpy sounddevice PyQt6
-
 
       - name: Build Executable with PyInstaller
         run: |
@@ -85,6 +83,9 @@ jobs:
       - name: Build Executable with py2app (macOS)
         run: |
           python setup.py py2app
+
+      - name: List contents of dist directory (macOS) # New step to list dist directory
+        run: ls -l dist/
 
       - name: zip the .app file
         run: |
