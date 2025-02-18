@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ViewSavedProjects</class>
+ <widget class="QWidget" name="ViewSavedProjects">
+  <property name="windowTitle">
+   <string>Saved Projects</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Saved Projects</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QListView" name="savedProjectsListView">
+     <property name="selectionMode">
+      <enum>QAbstractItemView::SingleSelection</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="openProjectButton">
+     <property name="text">
+      <string>Open Project</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="deleteProjectButton">
+     <property name="text">
+      <string>Delete Project</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+</ui>

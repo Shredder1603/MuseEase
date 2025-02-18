@@ -9,6 +9,9 @@ class Presenter:
         self.model = model
         self.view = view
         self.view.set_exit_callback(self.on_exit_requested)
+
+        # Connect the "Open File" button click to opening SavedProjects UI
+        self.view.open_file_button.clicked.connect(self.view.on_open_saved_projects)
     
     def new_project(self):
         '''
@@ -29,3 +32,4 @@ class Presenter:
 
         if do_exit == QMessageBox.StandardButton.Yes:
             self.view.execute_exit()
+
