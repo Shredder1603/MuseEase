@@ -7,6 +7,14 @@ from PyQt6.QtCore import Qt, QMutex, QMutexLocker, pyqtSignal
 from PyQt6 import uic
 
 class SoundGenerator:
+    '''
+    Function Description:
+        Initialize the SoundGenerator, set up the audio stream, and initialize state.
+    Inputs:
+        None
+    Outputs:
+        An instance of SoundGenerator ready for generating audio.
+    '''
     def __init__(self):
         self.mutex = QMutex()
         self.active_notes = {}
@@ -22,6 +30,17 @@ class SoundGenerator:
         )
         self.stream.start()
 
+    '''
+    Function Description:
+        Audio callback that fills the output buffer with the generated sine waves for active notes.
+    Inputs:
+        outdata: numpy array for audio output.
+        frames: number of frames to generate.
+        time: timing information (unused).
+        status: stream status (unused).
+    Outputs:
+        Fills outdata with the combined sine wave samples.
+    '''
     def audio_callback(self, outdata, frames, time, status):
         with QMutexLocker(self.mutex):
             outdata.fill(0)
@@ -34,6 +53,14 @@ class SoundGenerator:
                 self.phase[freq] += 2 * np.pi * freq * frames / self.sample_rate
                 self.phase[freq] %= 2 * np.pi
 
+    '''
+    Function Description:
+        Start playing a note by adding its frequency to the active notes.
+    Inputs:
+        frequency (float): The frequency of the note to be played.
+    Outputs:
+        The note is added to active_notes and will be generated in the audio callback.
+    '''
     def note_on(self, frequency):
         with QMutexLocker(self.mutex):
             if frequency not in self.active_notes:
@@ -41,6 +68,14 @@ class SoundGenerator:
                 if frequency not in self.phase:
                     self.phase[frequency] = 0
 
+    '''
+    Function Description:
+        Stop playing a note by removing its frequency from the active notes.
+    Inputs:
+        frequency (float): The frequency of the note to stop.
+    Outputs:
+        The note is removed from active_notes and its phase tracking is deleted.
+    '''
     def note_off(self, frequency):
         with QMutexLocker(self.mutex):
             if frequency in self.active_notes:
@@ -49,21 +84,28 @@ class SoundGenerator:
                 del self.phase[frequency]
 
 class NotesWindow(QMainWindow):
-    note_started = pyqtSignal(str)  # Signal for note start
-    note_stopped = pyqtSignal(str)  # Signal for note stop
-    finished = pyqtSignal()         # Signal emitted when window is closed
+    note_played = pyqtSignal(str)
     
+    '''
+    Function Description:
+        Initialize the MainWindow, load the UI, and set up signal connections and initial state.
+    Inputs:
+        None
+    Outputs:
+        An instance of MainWindow with UI components and audio functionality ready.
+    '''
     def __init__(self):
         super().__init__()
         ui_path = os.path.join(os.path.dirname(__file__), 'MVP/View/UI/Notes.ui')
         uic.loadUi(ui_path, self)
         
+        # Ensure the main window grabs keyboard focus immediately.
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setFocus()
         
         self.sound = SoundGenerator()
         self.current_octave = 4
-        self.active_notes = {}  # Maps note with octave (e.g., "C4") to frequency
+        self.active_notes = {}  # Maps note letter to frequency
         
         self.base_frequencies = {
             'C': 261.63,
@@ -80,7 +122,7 @@ class NotesWindow(QMainWindow):
             'B': 493.88
         }
         
-        # Connect note buttons
+        # Connect note buttons.
         note_buttons = {
             'ckey': 'C',
             'c#key': 'C#',
@@ -100,11 +142,11 @@ class NotesWindow(QMainWindow):
             button.pressed.connect(self.make_press_handler(note))
             button.released.connect(self.make_release_handler(note))
         
-        # Connect octave buttons
+        # Connect octave buttons.
         self.octaveUp.clicked.connect(self.increase_octave)
         self.octaveDown.clicked.connect(self.decrease_octave)
         
-        # Configure display
+        # Configure display.
         self.noteNameA.setReadOnly(True)
         self.noteNameA.setAlignment(Qt.AlignmentFlag.AlignCenter)
         font = self.noteNameA.font()
@@ -112,40 +154,85 @@ class NotesWindow(QMainWindow):
         font.setBold(True)
         self.noteNameA.setFont(font)
 
+    '''
+    Function Description:
+        Create a handler for pressing a note button.
+    Inputs:
+        note (str): The note letter (e.g., 'C', 'D').
+    Outputs:
+        A function (handler) that when called, plays the corresponding note.
+    '''
     def make_press_handler(self, note):
         def handler():
-            note_with_octave = f"{note}{self.current_octave}"
-            if note_with_octave in self.active_notes:
+            if note in self.active_notes:
                 return
             freq = self.base_frequencies[note] * (2 ** (self.current_octave - 4))
-            self.active_notes[note_with_octave] = freq
+            self.active_notes[note] = freq
             self.sound.note_on(freq)
             self.update_display(note)
-            self.note_started.emit(note_with_octave)
+            self.note_played.emit(note)
         return handler
 
-    def make_release_handler(self, note):
+    '''
+    Function Description:
+        Create a handler for releasing a note button.
+    Inputs:
+        note (str): The note letter (e.g., 'C', 'D').
+    Outputs:
+        A function (handler) that when called, stops playing the corresponding note.
+    '''
+    def make_release_handler(self, note):        
         def handler():
-            note_with_octave = f"{note}{self.current_octave}"
-            if note_with_octave in self.active_notes:
-                freq = self.active_notes.pop(note_with_octave)
+            if note in self.active_notes:
+                freq = self.active_notes.pop(note)
                 self.sound.note_off(freq)
                 self.update_display("")
-                self.note_stopped.emit(note_with_octave)
         return handler
 
+    '''
+    Function Description:
+        Update the note display in the UI.
+    Inputs:
+        note (str): The note letter to display; empty string clears the display.
+    Outputs:
+        The noteNameA widget is updated with the current note and octave.
+    '''
     def update_display(self, note):
         text = f"{note}{self.current_octave}" if note else ""
         self.noteNameA.setText(text)
 
+    '''
+    Function Description:
+        Increase the current octave.
+    Inputs:
+        None
+    Outputs:
+        Increments the current octave value (max 8).
+    '''
     def increase_octave(self):
         if self.current_octave < 8:
             self.current_octave += 1
 
+    '''
+    Function Description:
+        Decrease the current octave.
+    Inputs:
+        None
+    Outputs:
+        Decrements the current octave value (min 1).
+    '''
     def decrease_octave(self):
         if self.current_octave > 1:
             self.current_octave -= 1
 
+    '''
+    Function Description:
+        Handle key press events to start playing notes via keyboard.
+    Inputs:
+        event (QKeyEvent): The key press event.
+    Outputs:
+        Initiates note playback if the key corresponds to a valid note.
+    '''
     def keyPressEvent(self, event):
         if event.isAutoRepeat():
             return
@@ -164,8 +251,17 @@ class NotesWindow(QMainWindow):
             Qt.Key.Key_J: 'B'
         }
         if note := key_map.get(event.key()):
-            self.make_press_handler(note)()
+            if note not in self.active_notes:
+                self.make_press_handler(note)()
 
+    '''
+    Function Description:
+        Handle key release events to stop playing notes via keyboard.
+    Inputs:
+        event (QKeyEvent): The key release event.
+    Outputs:
+        Stops note playback if the key corresponds to a valid note.
+    '''
     def keyReleaseEvent(self, event):
         if event.isAutoRepeat():
             return
@@ -184,14 +280,22 @@ class NotesWindow(QMainWindow):
             Qt.Key.Key_J: 'B'
         }
         if note := key_map.get(event.key()):
-            self.make_release_handler(note)()
+            if note in self.active_notes:
+                self.make_release_handler(note)()
 
     def closeEvent(self, event):
         self.sound.stream.stop()
-        self.finished.emit()  # Emit finished signal when window closes
         event.accept()
 
 if __name__ == '__main__':
+    '''
+    Function Description:
+        Main entry point for the application.
+    Inputs:
+        None (but sys.argv is used for application arguments)
+    Outputs:
+        Executes the application event loop.
+    '''
     app = QApplication(sys.argv)
     window = NotesWindow()
     window.show()
