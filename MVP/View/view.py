@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QLabel, QFileDialog
+from PyQt6.QtWidgets import QMainWindow, QWidget, QLabel, QDialog
 from PyQt6.QtGui import QPixmap
 import os
 from PyQt6 import uic
@@ -8,17 +8,21 @@ class View(QMainWindow, QWidget):
 
     def __init__(self):
         super().__init__()
-        # Load the UI
+        # Load the Main Menu UI
         ui_path = os.path.join(os.path.dirname(__file__), 'UI/MainMenu.ui')
         uic.loadUi(ui_path, self)
-        
-        self.open_file_button = getattr(self, "open_file_button")
-        self.open_file_button.clicked.connect(self.open_user_file)
-        
+
         # Set up the exit button functionality
         self.exit_button = getattr(self, "exit_button")
         self.exit_button.clicked.connect(self.on_exit_requested)
         self.exit_requested_callback = None
+
+        # Connect "Open File" button to opening SavedProjects UI
+        self.open_file_button = getattr(self, "open_file_button")
+        self.open_file_button.clicked.connect(self.on_open_saved_projects)
+
+        # Track the Saved Projects UI window
+        self.saved_projects_window = None  
 
         self.setWindowTitle("PyQt6 Background Image")
         self.setGeometry(100, 100, 800, 500)
@@ -36,6 +40,15 @@ class View(QMainWindow, QWidget):
 
         # Ensure the QLabel is behind all other widgets
         self.bg_label.lower()
+
+    def on_open_saved_projects(self):
+        """Open the SavedProjects UI when 'open_file_button' is clicked, but only if it is not already open."""
+        if self.saved_projects_window is None or not self.saved_projects_window.isVisible():
+            saved_projects_path = os.path.join(os.path.dirname(__file__), 'UI/SavedProjects.ui')
+            self.saved_projects_window = QDialog(self)  # Create a new window for SavedProjects
+            uic.loadUi(saved_projects_path, self.saved_projects_window)
+            self.saved_projects_window.setWindowTitle("Saved Projects")
+            self.saved_projects_window.show()  # Show the dialog without blocking execution
 
     # Handle window resizing
     def resizeEvent(self, event):
@@ -59,10 +72,4 @@ class View(QMainWindow, QWidget):
 
     def execute_exit(self):
         self.close()
-        
-    def open_user_file(self):
-        """Open a file dialog and handle file selection."""
-        file, _ = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*)")
-        if file:
-            # For demonstration purposes, print the file path
-            print(f"File selected: {file}")
+

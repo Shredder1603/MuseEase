@@ -1,8 +1,9 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QFileDialog
+from PyQt6.QtWidgets import QApplication
 from MVP.Model.model import Model
 from MVP.View.view import View
 from MVP.presenter import Presenter
+
 
 def main():
     app = QApplication(sys.argv)
@@ -14,3 +15,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
