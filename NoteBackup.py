@@ -3,7 +3,7 @@ import os
 import numpy as np
 import sounddevice as sd
 from PyQt6.QtWidgets import QApplication, QMainWindow
-from PyQt6.QtCore import Qt, QMutex, QMutexLocker
+from PyQt6.QtCore import Qt, QMutex, QMutexLocker, pyqtSignal
 from PyQt6 import uic
 
 class SoundGenerator:
@@ -83,7 +83,9 @@ class SoundGenerator:
             if frequency in self.phase:
                 del self.phase[frequency]
 
-class MainWindow(QMainWindow):
+class NotesWindow(QMainWindow):
+    note_played = pyqtSignal(str)
+    
     '''
     Function Description:
         Initialize the MainWindow, load the UI, and set up signal connections and initial state.
@@ -168,6 +170,7 @@ class MainWindow(QMainWindow):
             self.active_notes[note] = freq
             self.sound.note_on(freq)
             self.update_display(note)
+            self.note_played.emit(note)
         return handler
 
     '''
@@ -178,14 +181,12 @@ class MainWindow(QMainWindow):
     Outputs:
         A function (handler) that when called, stops playing the corresponding note.
     '''
-    def make_release_handler(self, note):
-        
+    def make_release_handler(self, note):        
         def handler():
             if note in self.active_notes:
                 freq = self.active_notes.pop(note)
                 self.sound.note_off(freq)
                 self.update_display("")
-                
         return handler
 
     '''
@@ -282,6 +283,10 @@ class MainWindow(QMainWindow):
             if note in self.active_notes:
                 self.make_release_handler(note)()
 
+    def closeEvent(self, event):
+        self.sound.stream.stop()
+        event.accept()
+
 if __name__ == '__main__':
     '''
     Function Description:
@@ -292,6 +297,6 @@ if __name__ == '__main__':
         Executes the application event loop.
     '''
     app = QApplication(sys.argv)
-    window = MainWindow()
+    window = NotesWindow()
     window.show()
     sys.exit(app.exec())
