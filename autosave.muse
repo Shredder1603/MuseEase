@@ -1,0 +1,282 @@
+{
+    "tempo": 120,
+    "time_signature": "4/4",
+    "containers": [
+        {
+            "track": 0,
+            "start_x": 0.0,
+            "notes": [
+                {
+                    "timestamp": 4.004057168960571,
+                    "frequency": 523.26,
+                    "duration": 0.5549747943878174,
+                    "note_name": "C5"
+                },
+                {
+                    "timestamp": 4.630256175994873,
+                    "frequency": 523.26,
+                    "duration": 0.49999523162841797,
+                    "note_name": "C5"
+                },
+                {
+                    "timestamp": 5.186452865600586,
+                    "frequency": 784.0,
+                    "duration": 0.5549271106719971,
+                    "note_name": "G5"
+                },
+                {
+                    "timestamp": 5.79498291015625,
+                    "frequency": 784.0,
+                    "duration": 0.48218655586242676,
+                    "note_name": "G5"
+                },
+                {
+                    "timestamp": 6.356295108795166,
+                    "frequency": 880.01,
+                    "duration": 0.565838098526001,
+                    "note_name": "A5"
+                },
+                {
+                    "timestamp": 7.006135940551758,
+                    "frequency": 880.01,
+                    "duration": 0.5981159210205078,
+                    "note_name": "A5"
+                },
+                {
+                    "timestamp": 7.6757590770721436,
+                    "frequency": 784.0,
+                    "duration": 1.1265294551849365,
+                    "note_name": "G5"
+                },
+                {
+                    "timestamp": 8.894302129745483,
+                    "frequency": 698.47,
+                    "duration": 0.5509958267211914,
+                    "note_name": "F5"
+                },
+                {
+                    "timestamp": 9.531982421875,
+                    "frequency": 698.47,
+                    "duration": 0.5131618976593018,
+                    "note_name": "F5"
+                },
+                {
+                    "timestamp": 10.122170686721802,
+                    "frequency": 659.27,
+                    "duration": 0.611983060836792,
+                    "note_name": "E5"
+                },
+                {
+                    "timestamp": 10.791766881942749,
+                    "frequency": 659.27,
+                    "duration": 0.5325431823730469,
+                    "note_name": "E5"
+                },
+                {
+                    "timestamp": 11.396693229675293,
+                    "frequency": 587.34,
+                    "duration": 0.6126949787139893,
+                    "note_name": "D5"
+                },
+                {
+                    "timestamp": 12.082808017730713,
+                    "frequency": 587.34,
+                    "duration": 0.5830955505371094,
+                    "note_name": "D5"
+                },
+                {
+                    "timestamp": 12.73777151107788,
+                    "frequency": 523.26,
+                    "duration": 1.186514139175415,
+                    "note_name": "C5"
+                }
+            ]
+        },
+        {
+            "track": 1,
+            "start_x": 0.0,
+            "notes": [
+                {
+                    "timestamp": 4.0112669467926025,
+                    "frequency": 261.63,
+                    "duration": 0.33141064643859863,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 4.314895391464233,
+                    "frequency": 392.0,
+                    "duration": 0.32360124588012695,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 4.662886619567871,
+                    "frequency": 329.63,
+                    "duration": 0.3044266700744629,
+                    "note_name": "E4"
+                },
+                {
+                    "timestamp": 4.990169525146484,
+                    "frequency": 392.0,
+                    "duration": 0.2939918041229248,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 5.274773120880127,
+                    "frequency": 261.63,
+                    "duration": 0.32680797576904297,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 5.618561744689941,
+                    "frequency": 392.0,
+                    "duration": 0.25348424911499023,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 5.9118547439575195,
+                    "frequency": 329.63,
+                    "duration": 0.34607744216918945,
+                    "note_name": "E4"
+                },
+                {
+                    "timestamp": 6.260932683944702,
+                    "frequency": 392.0,
+                    "duration": 0.22488760948181152,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 6.498504638671875,
+                    "frequency": 261.63,
+                    "duration": 0.31588315963745117,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 6.827031135559082,
+                    "frequency": 440.01,
+                    "duration": 0.261976957321167,
+                    "note_name": "A4"
+                },
+                {
+                    "timestamp": 7.113014221191406,
+                    "frequency": 349.23,
+                    "duration": 0.27811670303344727,
+                    "note_name": "F4"
+                },
+                {
+                    "timestamp": 7.397135972976685,
+                    "frequency": 440.01,
+                    "duration": 0.2547597885131836,
+                    "note_name": "A4"
+                },
+                {
+                    "timestamp": 7.677949666976929,
+                    "frequency": 261.63,
+                    "duration": 0.29604434967041016,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 7.998211622238159,
+                    "frequency": 392.0,
+                    "duration": 0.26587963104248047,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 8.240886688232422,
+                    "frequency": 329.63,
+                    "duration": 0.35803747177124023,
+                    "note_name": "E4"
+                },
+                {
+                    "timestamp": 8.597931623458862,
+                    "frequency": 392.0,
+                    "duration": 0.24887633323669434,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 8.823049068450928,
+                    "frequency": 261.63,
+                    "duration": 0.31569480895996094,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 9.133753776550293,
+                    "frequency": 349.23,
+                    "duration": 0.2708463668823242,
+                    "note_name": "F4"
+                },
+                {
+                    "timestamp": 9.437091827392578,
+                    "frequency": 293.67,
+                    "duration": 0.29025912284851074,
+                    "note_name": "D4"
+                },
+                {
+                    "timestamp": 9.71871280670166,
+                    "frequency": 349.23,
+                    "duration": 0.3503291606903076,
+                    "note_name": "F4"
+                },
+                {
+                    "timestamp": 10.059838056564331,
+                    "frequency": 329.63,
+                    "duration": 0.26331353187561035,
+                    "note_name": "E4"
+                },
+                {
+                    "timestamp": 10.315140962600708,
+                    "frequency": 261.63,
+                    "duration": 0.07601237297058105,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 10.453181505203247,
+                    "frequency": 392.0,
+                    "duration": 0.2617194652557373,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 10.694139957427979,
+                    "frequency": 329.63,
+                    "duration": 0.3499016761779785,
+                    "note_name": "E4"
+                },
+                {
+                    "timestamp": 10.983880996704102,
+                    "frequency": 392.0,
+                    "duration": 0.31883955001831055,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 11.28675365447998,
+                    "frequency": 293.67,
+                    "duration": 0.3455374240875244,
+                    "note_name": "D4"
+                },
+                {
+                    "timestamp": 11.58610224723816,
+                    "frequency": 392.0,
+                    "duration": 0.3731522560119629,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 11.913398742675781,
+                    "frequency": 293.67,
+                    "duration": 0.2741060256958008,
+                    "note_name": "D4"
+                },
+                {
+                    "timestamp": 12.205588817596436,
+                    "frequency": 392.0,
+                    "duration": 0.29618048667907715,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 12.539307355880737,
+                    "frequency": 261.63,
+                    "duration": 1.6130995750427246,
+                    "note_name": "C4"
+                }
+            ]
+        }
+    ]
+}
