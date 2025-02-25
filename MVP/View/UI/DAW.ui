@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1277</width>
-    <height>712</height>
+    <width>1246</width>
+    <height>666</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -167,7 +167,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="stop">
+         <widget class="QPushButton" name="metronome">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -180,32 +180,29 @@
             <height>80</height>
            </size>
           </property>
+          <property name="styleSheet">
+           <string notr="true"/>
+          </property>
           <property name="text">
-           <string>PushButton</string>
+           <string/>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../Icons/Metronome.png</normaloff>../Icons/Metronome.png</iconset>
+          </property>
+          <property name="iconSize">
+           <size>
+            <width>60</width>
+            <height>35</height>
+           </size>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QGraphicsView" name="timeView">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>500</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>16777215</width>
-            <height>100</height>
-           </size>
-          </property>
-         </widget>
+         <widget class="QWidget" name="timeView" native="true"/>
         </item>
         <item>
          <widget class="QSlider" name="horizontalSlider">
@@ -246,7 +243,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1277</width>
+     <width>1246</width>
      <height>22</height>
     </rect>
    </property>

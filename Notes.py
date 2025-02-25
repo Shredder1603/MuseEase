@@ -7,6 +7,14 @@ from PyQt6.QtCore import Qt, QMutex, QMutexLocker, pyqtSignal
 from PyQt6 import uic
 
 class SoundGenerator:
+    '''
+    Function Description:
+        Initialize the SoundGenerator, set up the audio stream, and initialize state.
+    Inputs:
+        None
+    Outputs:
+        An instance of SoundGenerator ready for generating audio.
+    '''
     def __init__(self):
         self.mutex = QMutex()
         self.active_notes = {}
@@ -23,6 +31,17 @@ class SoundGenerator:
         self.stream.start()
 
     def audio_callback(self, outdata, frames, time, status):
+        '''
+        Function Description:
+            Audio callback that fills the output buffer with the generated sine waves for active notes.
+        Inputs:
+            outdata: numpy array for audio output.
+            frames: number of frames to generate.
+            time: timing information (unused).
+            status: stream status (unused).
+        Outputs:
+            Fills outdata with the combined sine wave samples.
+        '''
         with QMutexLocker(self.mutex):
             outdata.fill(0)
             t = np.arange(frames) / self.sample_rate
@@ -35,6 +54,14 @@ class SoundGenerator:
                 self.phase[freq] %= 2 * np.pi
 
     def note_on(self, frequency):
+        '''
+        Function Description:
+            Start playing a note by adding its frequency to the active notes.
+        Inputs:
+            frequency (float): The frequency of the note to be played.
+        Outputs:
+            The note is added to active_notes and will be generated in the audio callback.
+        '''
         with QMutexLocker(self.mutex):
             if frequency not in self.active_notes:
                 self.active_notes[frequency] = True
@@ -42,6 +69,14 @@ class SoundGenerator:
                     self.phase[frequency] = 0
 
     def note_off(self, frequency):
+        '''
+        Function Description:
+            Stop playing a note by removing its frequency from the active notes.
+        Inputs:
+            frequency (float): The frequency of the note to stop.
+        Outputs:
+            The note is removed from active_notes and its phase tracking is deleted.
+        '''
         with QMutexLocker(self.mutex):
             if frequency in self.active_notes:
                 del self.active_notes[frequency]
@@ -113,6 +148,14 @@ class NotesWindow(QMainWindow):
         self.noteNameA.setFont(font)
 
     def make_press_handler(self, note):
+        '''
+        Function Description:
+            Create a handler for pressing a note button.
+        Inputs:
+            note (str): The note letter (e.g., 'C', 'D').
+        Outputs:
+            A function (handler) that when called, plays the corresponding note.
+        '''
         def handler():
             note_with_octave = f"{note}{self.current_octave}"
             if note_with_octave in self.active_notes:
@@ -125,6 +168,14 @@ class NotesWindow(QMainWindow):
         return handler
 
     def make_release_handler(self, note):
+        '''
+        Function Description:
+            Create a handler for releasing a note button.
+        Inputs:
+            note (str): The note letter (e.g., 'C', 'D').
+        Outputs:
+            A function (handler) that when called, stops playing the corresponding note.
+        '''
         def handler():
             note_with_octave = f"{note}{self.current_octave}"
             if note_with_octave in self.active_notes:
@@ -135,18 +186,50 @@ class NotesWindow(QMainWindow):
         return handler
 
     def update_display(self, note):
+        '''
+        Function Description:
+            Update the note display in the UI.
+        Inputs:
+            note (str): The note letter to display; empty string clears the display.
+        Outputs:
+            The noteNameA widget is updated with the current note and octave.
+        '''
         text = f"{note}{self.current_octave}" if note else ""
         self.noteNameA.setText(text)
 
     def increase_octave(self):
+        '''
+        Function Description:
+            Increase the current octave.
+        Inputs:
+            None
+        Outputs:
+            Increments the current octave value (max 8).
+        '''
         if self.current_octave < 8:
             self.current_octave += 1
 
     def decrease_octave(self):
+        '''
+        Function Description:
+            Decrease the current octave.
+        Inputs:
+            None
+        Outputs:
+            Decrements the current octave value (min 1).
+        '''
         if self.current_octave > 1:
             self.current_octave -= 1
 
     def keyPressEvent(self, event):
+        '''
+        Function Description:
+            Handle key press events to start playing notes via keyboard.
+        Inputs:
+            event (QKeyEvent): The key press event.
+        Outputs:
+            Initiates note playback if the key corresponds to a valid note.
+    '''
         if event.isAutoRepeat():
             return
         key_map = {
@@ -167,6 +250,14 @@ class NotesWindow(QMainWindow):
             self.make_press_handler(note)()
 
     def keyReleaseEvent(self, event):
+        '''
+        Function Description:
+            Handle key release events to stop playing notes via keyboard.
+        Inputs:
+            event (QKeyEvent): The key release event.
+        Outputs:
+            Stops note playback if the key corresponds to a valid note.
+        '''    
         if event.isAutoRepeat():
             return
         key_map = {

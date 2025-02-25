@@ -1,6 +1,5 @@
 import pytest
 from PyQt6.QtCore import Qt
-from Notes import MainWindow
 
 # Expected frequencies at octave 4
 EXPECTED_FREQUENCIES = {
