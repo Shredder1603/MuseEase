@@ -4,7 +4,7 @@ import os
 from PyQt6 import uic
 
 
-class View(QMainWindow, QWidget):
+class Main_Menu(QMainWindow, QWidget):
 
     def __init__(self):
         super().__init__()

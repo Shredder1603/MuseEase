@@ -141,7 +141,7 @@ class DAWTest(QMainWindow):
         self.pause_icon_path = os.path.join(icons_dir, "Pause.png")
         self.set_button_icons()
 
-        self.autosave_file = "autosave.muse"
+        self.autosave_file = "./Saves/autosave.muse"
         self.note_order = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
     def set_button_icons(self):

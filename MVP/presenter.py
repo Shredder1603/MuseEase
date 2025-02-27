@@ -1,11 +1,11 @@
 from MVP.Model.model import Model
-from MVP.View.view import View
+from MVP.View.view import Main_Menu
 from PyQt6.QtWidgets import QMessageBox
 
 
 class Presenter:
 
-    def __init__(self, model: Model, view: View) -> None:
+    def __init__(self, model: Model, view: Main_Menu) -> None:
         self.model = model
         self.view = view
         self.view.set_exit_callback(self.on_exit_requested)
