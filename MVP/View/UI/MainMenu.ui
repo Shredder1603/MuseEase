@@ -51,7 +51,7 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="QPushButton" name="save_button">
+       <widget class="QPushButton" name="new_project_button">
         <property name="font">
          <font>
           <family>Arial Rounded MT Bold</family>

@@ -1,15 +1,40 @@
 from MVP.Model.model import Model
-from MVP.View.view import Main_Menu, SavedProjects
-from PyQt6.QtWidgets import QMessageBox
+from MVP.View.view import Main_Menu, Saved_Projects, New_Project
+from PyQt6.QtWidgets import QMessageBox, QStackedWidget
 import os
 
 
 class Presenter:
-    def __init__(self, model: Model, view: Main_Menu) -> None:
-        self.model = model
-        self.view = view
-        self.view.set_exit_callback(self.on_exit_requested)
-        self.view.set_open_saved_projects_callback(self.saved_project)
+    def __init__(self, stacked_widget) -> None:
+        self.stacked_widget = stacked_widget  # stack for holding all views (UIs) in memory
+        self.model = Model()
+        self.main_menu = Main_Menu()
+        self.new_project = New_Project()
+        self.saved_projects = Saved_Projects()
+
+        # add views to widget stack #
+        # ------------------------------------------ #
+        self.stacked_widget.addWidget(self.main_menu)
+        self.stacked_widget.addWidget(self.new_project)
+        self.stacked_widget.addWidget(self.saved_projects)
+        # ------------------------------------------ #
+
+        # initialize views #
+        # ------------------------------------------ #
+        self.main_menu_init()
+        self.saved_projects_init()
+        self.new_project_init()
+        # ------------------------------------------ #
+
+    def main_menu_init(self):
+        self.main_menu.set_exit_callback(self.on_exit_requested)
+        self.main_menu.set_open_saved_projects_callback(self.on_open_saved_projects_requested)
+
+    def saved_projects_init(self):
+        pass
+
+    def new_project_init(self):
+        pass
 
     def new_project(self):
         """Creates a new project"""
@@ -22,15 +47,18 @@ class Presenter:
         files = [f for f in os.listdir(folder_path) if f.endswith('.muse')]
         files = [os.path.splitext(f)[0] for f in os.listdir(folder_path) if f.endswith('.muse')]
         if not self.view.saved_projects_window:
-            self.view.saved_projects_window = SavedProjects()
+            self.view.saved_projects_window = Saved_Projects()
 
         self.view.saved_projects_window.populate_saved_projects(files)
         self.view.saved_projects_window.show()
 
+    def on_open_saved_projects_requested(self):
+        self.stacked_widget.setCurrentWidget(self.saved_projects)
+
     def on_exit_requested(self):
         """Exits the application with a confirmation message box."""
-        do_exit = QMessageBox.question(self.view, "Exit", "Are you sure you want to exit?",
+        do_exit = QMessageBox.question(self.main_menu, "Exit", "Are you sure you want to exit?",
                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
 
         if do_exit == QMessageBox.StandardButton.Yes:
-            self.view.execute_exit()
+            self.main_menu.execute_exit()

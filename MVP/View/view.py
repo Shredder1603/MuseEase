@@ -1,10 +1,11 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QLabel, QDialog, QPushButton, QListView, QMessageBox
+from PyQt6.QtWidgets import QWidget, QLabel, QDialog, QApplication, QListView, QMessageBox, QMainWindow
 from PyQt6.QtGui import QPixmap
 from PyQt6 import uic
 from PyQt6.QtCore import QStringListModel
 from MVP.View.daw_test import DAWTest
 import os
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
 
 class Main_Menu(QMainWindow, QWidget):
     def __init__(self):
@@ -18,12 +19,20 @@ class Main_Menu(QMainWindow, QWidget):
         self.bg_label = QLabel(self)
         self.bg_label.setScaledContents(True)
 
-        # Set up button functionality
+        # Set up button functionality #
+        # ---------------------------------------------------------------------- #
+        self.exit_button = getattr(self, "exit_button")
         self.exit_button.clicked.connect(self.on_exit_requested)
         self.exit_requested_callback = None
 
-        self.open_file_button.clicked.connect(self.on_open_saved_projects)
+        self.open_file_button = getattr(self, "open_file_button")
+        self.open_file_button.clicked.connect(self.on_open_saved_projects_requested)
         self.open_saved_projects_callback = None
+
+        self.new_project_button = getattr(self, "new_project_button")
+        self.new_project_button.clicked.connect(self.on_new_project_requested)
+        self.new_project_callback = None
+        # ---------------------------------------------------------------------- #
 
         # Track the Saved Projects UI window
         self.saved_projects_window = None  
@@ -67,33 +76,37 @@ class Main_Menu(QMainWindow, QWidget):
             self.exit_requested_callback()
 
     def execute_exit(self):
-        self.close()
+        QApplication.quit()
 
-<<<<<<< HEAD
-
-class New_Project(QMainWindow, QWidget):
-
-    def __init__(self):
-        super().__init__()
-=======
     def set_open_saved_projects_callback(self, callback):
         self.open_saved_projects_callback = callback
 
-    def on_open_saved_projects(self):
+    def on_open_saved_projects_requested(self):
         if self.open_saved_projects_callback:
             self.open_saved_projects_callback()
 
+    def set_new_project_callback(self, callback):
+        self.new_project_callback = callback
 
-class SavedProjects(QDialog):
+    def on_new_project_requested(self):
+        if self.new_project_callback:
+            self.new_project_callback()
+
+
+class Saved_Projects(QDialog, QWidget):
     def __init__(self):
         super().__init__()
         ui_path = os.path.join(os.path.dirname(__file__), 'UI/SavedProjects.ui')
         uic.loadUi(ui_path, self)
 
+        self.openProjectButton = getattr(self, "openProjectButton")
         self.openProjectButton.clicked.connect(self.open_selected_project)
+
+        self.deleteProjectButton = getattr(self, "deleteProjectButton")
         self.deleteProjectButton.clicked.connect(self.delete_selected_project)
 
         # Prevent user from editing the QListView
+        self.savedProjectsListView = getattr(self, "savedProjectsListView")
         self.savedProjectsListView.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
 
     def populate_saved_projects(self, files):
@@ -135,4 +148,8 @@ class SavedProjects(QDialog):
             QMessageBox.information(self, "Delete Project", f"Deleted: {selected_file}")
             self.populate_saved_projects([os.path.splitext(f)[0] for f in os.listdir(folder_path) if f.endswith('.muse')])
 
->>>>>>> df9794c35acff4d76b6253f66f44da2e8d4ab009
+
+class New_Project(QWidget):
+    def __init__(self):
+        super().__init__()
+
