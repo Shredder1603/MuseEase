@@ -73,3 +73,8 @@ class Main_Menu(QMainWindow, QWidget):
     def execute_exit(self):
         self.close()
 
+
+class New_Project(QMainWindow, QWidget):
+
+    def __init__(self):
+        super().__init__()
