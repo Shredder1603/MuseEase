@@ -9,7 +9,7 @@
    <item>
     <widget class="QLabel" name="label">
      <property name="text">
-      <string>Saved Projects</string>
+      <string>Projects</string>
      </property>
     </widget>
    </item>
