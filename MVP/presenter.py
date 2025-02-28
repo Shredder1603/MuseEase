@@ -29,6 +29,7 @@ class Presenter:
     def main_menu_init(self):
         self.main_menu.set_exit_callback(self.on_exit_requested)
         self.main_menu.set_open_saved_projects_callback(self.on_open_saved_projects_requested)
+        self.main_menu.set_new_project_callback(self.on_new_project_requested)
 
     def saved_projects_init(self):
         pass
@@ -54,6 +55,9 @@ class Presenter:
 
     def on_open_saved_projects_requested(self):
         self.stacked_widget.setCurrentWidget(self.saved_projects)
+
+    def on_new_project_requested(self):
+        self.stacked_widget.setCurrentWidget(self.new_project)
 
     def on_exit_requested(self):
         """Exits the application with a confirmation message box."""
