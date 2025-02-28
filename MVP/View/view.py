@@ -2,7 +2,9 @@ from PyQt6.QtWidgets import QMainWindow, QWidget, QLabel, QDialog, QPushButton, 
 from PyQt6.QtGui import QPixmap
 from PyQt6 import uic
 from PyQt6.QtCore import QStringListModel
+from MVP.View.daw_test import DAWTest
 import os
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 class Main_Menu(QMainWindow, QWidget):
     def __init__(self):
@@ -101,7 +103,11 @@ class SavedProjects(QDialog):
             return
         
         selected_file = selected_indexes[0].data()
+        project_path = os.path.join(project_root, "Saves", f"{selected_file}.muse")  # Full path to .muse file
         QMessageBox.information(self, "Open Project", f"Opening project: {selected_file}")
+        daw = DAWTest()
+        daw.show()
+        daw.load_project(project_path)
 
     def delete_selected_project(self):
         """Deletes the selected project."""
