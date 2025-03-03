@@ -32,6 +32,12 @@ class Presenter:
         self.main_menu.set_new_project_callback(self.on_new_project_requested)
 
     def saved_projects_init(self):
+        
+        if not self.saved_projects:
+            print("Recreating Saved_Projects instance")
+            self.saved_projects = Saved_Projects(self)
+            self.stacked_widget.addWidget(self.saved_projects)
+        
         folder_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "MuseEase/Saves")
         os.makedirs(folder_path, exist_ok=True)
 
@@ -59,7 +65,8 @@ class Presenter:
         print(f"Filtered .muse files (base names): {files}")
 
         # Populate the SavedProjects window
-        self.saved_projects.populate_saved_projects(files)
+        if files and self.saved_projects:
+            self.saved_projects.populate_saved_projects(files)
 
     def new_project_init(self):
         pass
@@ -84,7 +91,11 @@ class Presenter:
         self.stacked_widget.setCurrentWidget(self.saved_projects)
 
     def on_new_project_requested(self):
-        self.reinitialize_project_views()
+        if not self.new_project:
+            print("Recreating New_Project instance")
+            self.new_project = New_Project(self)
+            self.stacked_widget.addWidget(self.new_project)
+            
         self.stacked_widget.setCurrentWidget(self.new_project)
         self.saved_projects_init()
 
@@ -118,7 +129,7 @@ class Presenter:
         
         if self.saved_projects:
             print("CLOSING SAVED PROJECTS")
-            self.saved_projects.close
+            self.saved_projects.close()
             self.stacked_widget.removeWidget(self.saved_projects)
             self.saved_projects = None
             
@@ -126,7 +137,8 @@ class Presenter:
             self.new_project.close() 
             self.new_project = None 
         
-        self.reinitialize_project_views()
+        self.saved_projects_init()
+        
     
     def reinitialize_project_views(self):
         """Reinitializes New_Project and Saved_Projects when needed."""
