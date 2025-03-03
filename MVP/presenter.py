@@ -84,7 +84,9 @@ class Presenter:
         self.stacked_widget.setCurrentWidget(self.saved_projects)
 
     def on_new_project_requested(self):
+        self.reinitialize_project_views()
         self.stacked_widget.setCurrentWidget(self.new_project)
+        self.saved_projects_init()
 
     def on_exit_requested(self):
         """Exits the application with a confirmation message box."""
@@ -114,6 +116,32 @@ class Presenter:
         #print("HANDLING REQUEST")
         self.stacked_widget.setCurrentWidget(self.main_menu)
         
+        if self.saved_projects:
+            print("CLOSING SAVED PROJECTS")
+            self.saved_projects.close
+            self.stacked_widget.removeWidget(self.saved_projects)
+            self.saved_projects = None
+            
         if self.new_project:
             self.new_project.close() 
             self.new_project = None 
+        
+        self.reinitialize_project_views()
+    
+    def reinitialize_project_views(self):
+        """Reinitializes New_Project and Saved_Projects when needed."""
+                
+        if not self.new_project:
+            self.new_project = New_Project(self)
+            self.stacked_widget.addWidget(self.new_project) 
+        
+        if not self.saved_projects:
+            self.saved_projects = Saved_Projects(self)
+            self.stacked_widget.addWidget(self.saved_projects)  
+
+
+            
+            
+        
+            
+            

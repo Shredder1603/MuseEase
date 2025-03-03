@@ -1,5 +1,72 @@
 {
     "tempo": 120,
     "time_signature": "4/4",
-    "containers": []
+    "containers": [
+        {
+            "track": 0,
+            "start_x": 0.0,
+            "notes": [
+                {
+                    "timestamp": 0.4319794178009033,
+                    "frequency": 392.0,
+                    "duration": 0.14407992362976074,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 0.43497776985168457,
+                    "frequency": 261.63,
+                    "duration": 0.14517807960510254,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 0.6555287837982178,
+                    "frequency": 392.0,
+                    "duration": 0.14088010787963867,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 0.6555287837982178,
+                    "frequency": 261.63,
+                    "duration": 0.14857697486877441,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 0.8869786262512207,
+                    "frequency": 392.0,
+                    "duration": 0.1280536651611328,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 0.8869786262512207,
+                    "frequency": 261.63,
+                    "duration": 0.13257360458374023,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 1.101470947265625,
+                    "frequency": 261.63,
+                    "duration": 0.14763760566711426,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 1.1170904636383057,
+                    "frequency": 392.0,
+                    "duration": 0.13302087783813477,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 1.3540899753570557,
+                    "frequency": 261.63,
+                    "duration": 0.1686551570892334,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 1.372563123703003,
+                    "frequency": 392.0,
+                    "duration": 0.15744519233703613,
+                    "note_name": "G4"
+                }
+            ]
+        }
+    ]
 }

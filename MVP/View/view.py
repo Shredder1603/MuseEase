@@ -131,8 +131,19 @@ class Saved_Projects(QDialog, QWidget):
         selected_file = selected_indexes[0].data()
         project_path = os.path.join(project_root, "Saves", f"{selected_file}.muse")  # Full path to .muse file
         QMessageBox.information(self, "Open Project", f"Opening project: {selected_file}")
-        daw = New_Project()
-        daw.show()
+        
+        if self.presenter:
+            self.presenter.stacked_widget.removeWidget(self.presenter.saved_projects)
+            self.presenter.saved_projects = None  # Prevent reopening
+
+        # Force the UI to switch to Main Menu before loading the project
+        self.presenter.stacked_widget.setCurrentWidget(self.presenter.main_menu)
+
+        # Open New_Project as usual
+        daw = New_Project(self.presenter)
+        self.presenter.new_project = daw
+        self.presenter.stacked_widget.addWidget(daw)
+        self.presenter.stacked_widget.setCurrentWidget(daw)
         daw.load_project(project_path)
 
     def delete_selected_project(self):
@@ -526,6 +537,9 @@ class New_Project(QMainWindow, QWidget):
         For now it is the same as autosave, but in the future will be used for MANUAL saving
         '''
         self.autosave()
+        
+        if self.presenter:
+            self.presenter.saved_projects_init()
 
     def load_project(self, filename):
         '''
