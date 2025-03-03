@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QWidget, QLabel, QDialog, QApplication, QListView, QMessageBox, QMainWindow, QGraphicsScene,
                              QGraphicsRectItem, QGraphicsItemGroup, QLineEdit, QHBoxLayout)
-from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor, QCursor, QPainter, QFont, QIcon
+from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor, QCursor, QPainter, QFont, QIcon, QAction
 from PyQt6 import uic
 from PyQt6.QtCore import QStringListModel, Qt, QTimer, QRectF, QPointF
 from MVP.View.Notes import NotesWindow
@@ -99,11 +99,12 @@ class Main_Menu(QMainWindow, QWidget):
 
 
 class Saved_Projects(QDialog, QWidget):
-    def __init__(self):
+    def __init__(self, presenter=None):
         super().__init__()
         ui_path = os.path.join(os.path.dirname(__file__), 'UI/SavedProjects.ui')
         uic.loadUi(ui_path, self)
 
+        self.presenter = presenter
         self.openProjectButton = getattr(self, "openProjectButton")
         self.openProjectButton.clicked.connect(self.open_selected_project)
 
@@ -155,7 +156,7 @@ class Saved_Projects(QDialog, QWidget):
 
 
 class New_Project(QMainWindow, QWidget):
-    def __init__(self):
+    def __init__(self, presenter=None):
         super().__init__()
 
         ui_path = os.path.join(os.path.dirname(__file__), "UI/DAW.ui")
@@ -264,6 +265,9 @@ class New_Project(QMainWindow, QWidget):
         self.autosave_file = "./Saves/autosave.muse"  # Model
         self.note_order = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']  # Model
 
+        self.presenter = presenter
+        self.exit_to_menu = self.findChild(QAction, "back")
+        self.exit_to_menu.triggered.connect(self.exit_to_main_menu)
     def set_button_icons(self):
         '''
         Updates play/pause button icon based on state (View)
@@ -906,6 +910,21 @@ class New_Project(QMainWindow, QWidget):
         self.playback_stream.stop()
         self.note_playback_timer.stop()
         event.accept()
+        
+    def exit_to_main_menu(self):
+        """
+        Closes the DAW UI and opens the Main Menu UI by notifying the Presenter.
+        """
+        #print("EXIT TO MENU REQUESTED")
+        # Signal the Presenter to switch back to Main_Menu and close this window
+        if self.presenter:  # Assuming the Presenter is passed or accessible
+            self.presenter.on_exit_to_menu_requested()
+        else:
+            # Fallback: Close this window and show Main_Menu directly (if Presenter isn’t available)
+            self.close()
+            main_menu = Main_Menu()
+            main_menu.show()
+            
     class DraggableContainer(QGraphicsRectItem):
         def __init__(self, track_height, *args, **kwargs):
             super().__init__(*args, **kwargs)

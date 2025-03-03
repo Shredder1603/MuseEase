@@ -9,8 +9,8 @@ class Presenter:
         self.stacked_widget = stacked_widget  # stack for holding all views (UIs) in memory
         self.model = Model()
         self.main_menu = Main_Menu()
-        self.new_project = New_Project()
-        self.saved_projects = Saved_Projects()
+        self.new_project = New_Project(self)
+        self.saved_projects = Saved_Projects(self)
 
         # add views to widget stack #
         # ------------------------------------------ #
@@ -93,3 +93,27 @@ class Presenter:
 
         if do_exit == QMessageBox.StandardButton.Yes:
             self.main_menu.execute_exit()
+    
+    def on_new_project_from_save_requested(self, project_name, project_path):
+        """Handles loading a saved project and switching to New_Project."""
+        # Close the existing New_Project if it exists
+        if self.new_project:
+            self.new_project.close()
+            self.new_project = None
+        
+        # Create a new New_Project instance with the Presenter
+        self.new_project = New_Project(self)
+        self.new_project.load_project(project_path)  # Load the saved project
+        
+        # Add or update New_Project in the stacked widget (it’s already added in __init__, but ensure it’s current)
+        self.stacked_widget.setCurrentWidget(self.new_project)
+            
+    def on_exit_to_menu_requested(self):
+        """Handles the request to exit New_Project and return to Main_Menu."""
+        
+        #print("HANDLING REQUEST")
+        self.stacked_widget.setCurrentWidget(self.main_menu)
+        
+        if self.new_project:
+            self.new_project.close() 
+            self.new_project = None 

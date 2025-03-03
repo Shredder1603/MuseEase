@@ -247,26 +247,32 @@
      <height>22</height>
     </rect>
    </property>
-   <widget class="QMenu" name="File">
+   <widget class="QMenu" name="file">
     <property name="title">
      <string>File</string>
     </property>
+    <addaction name="back"/>
    </widget>
-   <widget class="QMenu" name="Edit">
+   <widget class="QMenu" name="edit">
     <property name="title">
      <string>Edit</string>
     </property>
    </widget>
-   <widget class="QMenu" name="Settings">
+   <widget class="QMenu" name="settings">
     <property name="title">
      <string>Settings</string>
     </property>
    </widget>
-   <addaction name="File"/>
-   <addaction name="Edit"/>
-   <addaction name="Settings"/>
+   <addaction name="file"/>
+   <addaction name="edit"/>
+   <addaction name="settings"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="back">
+   <property name="text">
+    <string>Exit to Menu</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>
