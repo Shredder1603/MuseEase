@@ -32,7 +32,19 @@ class Presenter:
         self.main_menu.set_new_project_callback(self.on_new_project_requested)
 
     def saved_projects_init(self):
-        pass
+        folder_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "MuseEase/Saves")
+        os.makedirs(folder_path, exist_ok=True)
+        
+        muse_files = [f for f in files if f.lower().endswith('.muse')]  # Case-insensitive check
+        if not muse_files:
+            print("No .muse files found in the directory.")
+            QMessageBox.warning(self.saved_projects, "No Projects", "No saved projects found in Saves directory.")
+            return
+
+        files = [os.path.splitext(f)[0] for f in muse_files]  # Extract base names (e.g., "autosave")
+
+        # Populate the SavedProjects window
+        self.saved_projects.populate_saved_projects(files)
 
     def new_project_init(self):
         pass
@@ -42,7 +54,7 @@ class Presenter:
 
     def saved_project(self):
         """Opens the 'Saved Projects' UI and loads saved `.muse` files."""
-        folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Saves")
+        folder_path = os.path.join((os.path.dirname(__file__)), "MuseEase/Saves")
         os.makedirs(folder_path, exist_ok=True)
 
         files = [f for f in os.listdir(folder_path) if f.endswith('.muse')]

@@ -7,57 +7,57 @@
             "start_x": 0.0,
             "notes": [
                 {
-                    "timestamp": 0.4591183662414551,
+                    "timestamp": 0.3983488082885742,
                     "frequency": 261.63,
-                    "duration": 0.3539156913757324,
+                    "duration": 0.32346558570861816,
                     "note_name": "C4"
                 },
                 {
-                    "timestamp": 0.878021240234375,
+                    "timestamp": 0.7788846492767334,
                     "frequency": 293.67,
-                    "duration": 0.2676563262939453,
+                    "duration": 0.36607956886291504,
                     "note_name": "D4"
                 },
                 {
-                    "timestamp": 1.1738574504852295,
+                    "timestamp": 1.1832995414733887,
                     "frequency": 329.63,
-                    "duration": 0.29892539978027344,
+                    "duration": 0.380918025970459,
                     "note_name": "E4"
                 },
                 {
-                    "timestamp": 1.504274845123291,
+                    "timestamp": 1.570547103881836,
                     "frequency": 349.23,
-                    "duration": 0.3184242248535156,
+                    "duration": 0.3561248779296875,
                     "note_name": "F4"
                 },
                 {
-                    "timestamp": 1.912827491760254,
+                    "timestamp": 1.9940612316131592,
                     "frequency": 392.0,
-                    "duration": 0.2732207775115967,
+                    "duration": 0.3076751232147217,
                     "note_name": "G4"
                 },
                 {
-                    "timestamp": 2.263826847076416,
+                    "timestamp": 2.409360408782959,
                     "frequency": 349.23,
-                    "duration": 0.2791438102722168,
+                    "duration": 0.34697675704956055,
                     "note_name": "F4"
                 },
                 {
-                    "timestamp": 2.6006808280944824,
+                    "timestamp": 2.8050854206085205,
                     "frequency": 329.63,
-                    "duration": 0.2232217788696289,
+                    "duration": 0.35138845443725586,
                     "note_name": "E4"
                 },
                 {
-                    "timestamp": 2.86372709274292,
+                    "timestamp": 3.1845104694366455,
                     "frequency": 293.67,
-                    "duration": 0.24108481407165527,
+                    "duration": 0.35903477668762207,
                     "note_name": "D4"
                 },
                 {
-                    "timestamp": 3.2013795375823975,
+                    "timestamp": 3.5864758491516113,
                     "frequency": 261.63,
-                    "duration": 0.9686648845672607,
+                    "duration": 1.5329694747924805,
                     "note_name": "C4"
                 }
             ]
