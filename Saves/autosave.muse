@@ -5,7 +5,54 @@
         {
             "track": 0,
             "start_x": 0.0,
+<<<<<<< HEAD
             "notes": []
+=======
+            "notes": [
+                {
+                    "timestamp": 0.44676804542541504,
+                    "frequency": 261.63,
+                    "duration": 0.1349499225616455,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 0.49464964866638184,
+                    "frequency": 392.0,
+                    "duration": 0.1253492832183838,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 0.622971773147583,
+                    "frequency": 261.63,
+                    "duration": 0.09170174598693848,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 0.6670677661895752,
+                    "frequency": 392.0,
+                    "duration": 0.10523152351379395,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 0.8332910537719727,
+                    "frequency": 392.0,
+                    "duration": 0.08287906646728516,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 0.9918274879455566,
+                    "frequency": 392.0,
+                    "duration": 0.06941819190979004,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 0.7798469066619873,
+                    "frequency": 261.63,
+                    "duration": 0.37940335273742676,
+                    "note_name": "C4"
+                }
+            ]
+>>>>>>> a3dafef26112007d1741697052006e6ca24bef5a
         }
     ]
 }

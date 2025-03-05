@@ -9,8 +9,8 @@ class Presenter:
         self.stacked_widget = stacked_widget  # stack for holding all views (UIs) in memory
         self.model = Model()
         self.main_menu = Main_Menu()
-        self.new_project = New_Project()
-        self.saved_projects = Saved_Projects()
+        self.new_project = New_Project(self)
+        self.saved_projects = Saved_Projects(self)
 
         # add views to widget stack #
         # ------------------------------------------ #
@@ -32,7 +32,41 @@ class Presenter:
         self.main_menu.set_new_project_callback(self.on_new_project_requested)
 
     def saved_projects_init(self):
-        pass
+        
+        if not self.saved_projects:
+            print("Recreating Saved_Projects instance")
+            self.saved_projects = Saved_Projects(self)
+            self.stacked_widget.addWidget(self.saved_projects)
+        
+        folder_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "MuseEase/Saves")
+        os.makedirs(folder_path, exist_ok=True)
+
+        # Debug: Check if the directory and files exist
+        print(f"Looking for .muse files in: {folder_path}")
+        try:
+            files = os.listdir(folder_path)
+            print(f"Found files: {files}")
+        except PermissionError as e:
+            print(f"Permission error accessing Saves directory: {e}")
+            print(self.saved_projects, "Permission Error", f"Cannot access Saves directory: {str(e)}")
+            return
+        except FileNotFoundError as e:
+            print(f"Saves directory not found: {e}")
+            print(self.saved_projects, "Directory Error", f"Saves directory not found: {str(e)}")
+            return
+
+        muse_files = [f for f in files if f.lower().endswith('.muse')]  # Case-insensitive check
+        if not muse_files:
+            print("No .muse files found in the directory.")
+            print(self.saved_projects, "No Projects", "No saved projects found in Saves directory.")
+            return
+
+        files = [os.path.splitext(f)[0] for f in muse_files]  # Extract base names (e.g., "autosave")
+        print(f"Filtered .muse files (base names): {files}")
+
+        # Populate the SavedProjects window
+        if files and self.saved_projects:
+            self.saved_projects.populate_saved_projects(files)
 
     def new_project_init(self):
         pass
@@ -42,7 +76,7 @@ class Presenter:
 
     def saved_project(self):
         """Opens the 'Saved Projects' UI and loads saved `.muse` files."""
-        folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Saves")
+        folder_path = os.path.join((os.path.dirname(__file__)), "MuseEase/Saves")
         os.makedirs(folder_path, exist_ok=True)
 
         files = [f for f in os.listdir(folder_path) if f.endswith('.muse')]
@@ -57,7 +91,13 @@ class Presenter:
         self.stacked_widget.setCurrentWidget(self.saved_projects)
 
     def on_new_project_requested(self):
+        if not self.new_project:
+            print("Recreating New_Project instance")
+            self.new_project = New_Project(self)
+            self.stacked_widget.addWidget(self.new_project)
+            
         self.stacked_widget.setCurrentWidget(self.new_project)
+        self.saved_projects_init()
 
     def on_exit_requested(self):
         """Exits the application with a confirmation message box."""
@@ -66,3 +106,54 @@ class Presenter:
 
         if do_exit == QMessageBox.StandardButton.Yes:
             self.main_menu.execute_exit()
+    
+    def on_new_project_from_save_requested(self, project_name, project_path):
+        """Handles loading a saved project and switching to New_Project."""
+        # Close the existing New_Project if it exists
+        if self.new_project:
+            self.new_project.close()
+            self.new_project = None
+        
+        # Create a new New_Project instance with the Presenter
+        self.new_project = New_Project(self)
+        self.new_project.load_project(project_path)  # Load the saved project
+        
+        # Add or update New_Project in the stacked widget (it’s already added in __init__, but ensure it’s current)
+        self.stacked_widget.setCurrentWidget(self.new_project)
+            
+    def on_exit_to_menu_requested(self):
+        """Handles the request to exit New_Project and return to Main_Menu."""
+        
+        #print("HANDLING REQUEST")
+        self.stacked_widget.setCurrentWidget(self.main_menu)
+        
+        if self.saved_projects:
+            print("CLOSING SAVED PROJECTS")
+            self.saved_projects.close()
+            self.stacked_widget.removeWidget(self.saved_projects)
+            self.saved_projects = None
+            
+        if self.new_project:
+            self.new_project.close() 
+            self.new_project = None 
+        
+        self.saved_projects_init()
+        
+    
+    def reinitialize_project_views(self):
+        """Reinitializes New_Project and Saved_Projects when needed."""
+                
+        if not self.new_project:
+            self.new_project = New_Project(self)
+            self.stacked_widget.addWidget(self.new_project) 
+        
+        if not self.saved_projects:
+            self.saved_projects = Saved_Projects(self)
+            self.stacked_widget.addWidget(self.saved_projects)  
+
+
+            
+            
+        
+            
+            
