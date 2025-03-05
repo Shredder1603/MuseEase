@@ -90,7 +90,7 @@ class NotesWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        ui_path = os.path.join(os.path.dirname(__file__), 'MVP/View/UI/Notes.ui')
+        ui_path = os.path.join(os.path.dirname(__file__), 'UI/Notes.ui')
         uic.loadUi(ui_path, self)
         
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)

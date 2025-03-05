@@ -361,6 +361,7 @@ class New_Project(QMainWindow, QWidget):
         self.playback_timer.start()
 
     def snap_notes_window(self):
+        print("snapping notes lol")
         '''
         Positions (snaps) the notes window to the bottom of the DAW window (View)'''
         if not self.notes_window:
