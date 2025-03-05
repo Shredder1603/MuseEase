@@ -5,6 +5,7 @@ import sounddevice as sd
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtCore import Qt, QMutex, QMutexLocker, pyqtSignal
 from PyQt6 import uic
+import matplotlib.pyplot as plt
 
 class SoundGenerator:
     '''
@@ -16,44 +17,16 @@ class SoundGenerator:
         An instance of SoundGenerator ready for generating audio.
     '''
     def __init__(self):
+        import soundfile as sf
+        import threading
+        self.threading = threading
+        self.sf = sf
+        self.audio_path = os.getcwd() + "/Instruments/Piano/"
         self.mutex = QMutex()
         self.active_notes = {}
-        self.sample_rate = 44100
-        self.phase = {}
 
-        self.stream = sd.OutputStream(
-            samplerate=self.sample_rate,
-            blocksize=1024,
-            channels=1,
-            callback=self.audio_callback,
-            dtype='float32'
-        )
-        self.stream.start()
+    def note_on(self, note: str):
 
-    def audio_callback(self, outdata, frames, time, status):
-        '''
-        Function Description:
-            Audio callback that fills the output buffer with the generated sine waves for active notes.
-        Inputs:
-            outdata: numpy array for audio output.
-            frames: number of frames to generate.
-            time: timing information (unused).
-            status: stream status (unused).
-        Outputs:
-            Fills outdata with the combined sine wave samples.
-        '''
-        with QMutexLocker(self.mutex):
-            outdata.fill(0)
-            t = np.arange(frames) / self.sample_rate
-            for freq in list(self.active_notes.keys()):
-                if freq not in self.phase:
-                    self.phase[freq] = 0
-                samples = 0.3 * np.sin(2 * np.pi * freq * t + self.phase[freq])
-                outdata[:, 0] += samples
-                self.phase[freq] += 2 * np.pi * freq * frames / self.sample_rate
-                self.phase[freq] %= 2 * np.pi
-
-    def note_on(self, frequency):
         '''
         Function Description:
             Start playing a note by adding its frequency to the active notes.
@@ -63,12 +36,13 @@ class SoundGenerator:
             The note is added to active_notes and will be generated in the audio callback.
         '''
         with QMutexLocker(self.mutex):
-            if frequency not in self.active_notes:
-                self.active_notes[frequency] = True
-                if frequency not in self.phase:
-                    self.phase[frequency] = 0
+            if note not in self.active_notes:
+                self.active_notes[note] = True
+                filename = self.audio_path + note + ".aiff"
+                thread = self.threading.Thread(target=self.play_audio, args=(filename,))
+                thread.start()
 
-    def note_off(self, frequency):
+    def note_off(self, note: str):
         '''
         Function Description:
             Stop playing a note by removing its frequency from the active notes.
@@ -78,10 +52,33 @@ class SoundGenerator:
             The note is removed from active_notes and its phase tracking is deleted.
         '''
         with QMutexLocker(self.mutex):
-            if frequency in self.active_notes:
-                del self.active_notes[frequency]
-            if frequency in self.phase:
-                del self.phase[frequency]
+            if note in self.active_notes:
+                del self.active_notes[note]
+
+    def play_audio(self, filename: str):
+        try:
+            data, samplerate = self.sf.read(filename)
+            if data.ndim > 1:
+                data = np.mean(data, axis=1)
+
+            end_frame = int(2 * samplerate)
+            max_idx = np.argmax(abs(data))
+            start_frame = 0
+
+            for x in range(max_idx - 1, -1, -1):
+                if abs(data[x]) < 0.0010:
+                    start_frame = x
+                    break
+            if end_frame > len(data):
+                end_frame = len(data)
+
+            snippet = data[max_idx:end_frame]
+            sd.play(snippet, samplerate)
+            sd.wait()
+        except self.sf.SoundFileError:
+            print(f"Error: could not read {filename}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
 
 class NotesWindow(QMainWindow):
     note_started = pyqtSignal(str)  # Signal for note start
@@ -162,7 +159,7 @@ class NotesWindow(QMainWindow):
                 return
             freq = self.base_frequencies[note] * (2 ** (self.current_octave - 4))
             self.active_notes[note_with_octave] = freq
-            self.sound.note_on(freq)
+            self.sound.note_on(note_with_octave)
             self.update_display(note)
             self.note_started.emit(note_with_octave)
         return handler
@@ -180,7 +177,7 @@ class NotesWindow(QMainWindow):
             note_with_octave = f"{note}{self.current_octave}"
             if note_with_octave in self.active_notes:
                 freq = self.active_notes.pop(note_with_octave)
-                self.sound.note_off(freq)
+                self.sound.note_off(note_with_octave)
                 self.update_display("")
                 self.note_stopped.emit(note_with_octave)
         return handler
@@ -278,7 +275,6 @@ class NotesWindow(QMainWindow):
             self.make_release_handler(note)()
 
     def closeEvent(self, event):
-        self.sound.stream.stop()
         self.finished.emit()  # Emit finished signal when window closes
         event.accept()
 
