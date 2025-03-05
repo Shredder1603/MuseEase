@@ -61,20 +61,24 @@ class SoundGenerator:
             if data.ndim > 1:
                 data = np.mean(data, axis=1)
 
-            end_frame = int(2 * samplerate)
-            max_idx = np.argmax(abs(data))
-            start_frame = 0
+            end_frame = int(2 * samplerate)  # set end idx to 2 seconds in
+            max_idx = np.argmax(abs(data))  # find where sound bite has max amplitude
+            start_frame = 0  # initialize to zero idx
 
+            # find first min amplitude at idx closest to max_idx
             for x in range(max_idx - 1, -1, -1):
                 if abs(data[x]) < 0.0010:
                     start_frame = x
                     break
+
+            # if end idx out of bounds, set to length of data array
             if end_frame > len(data):
                 end_frame = len(data)
 
-            snippet = data[max_idx:end_frame]
+            # splice data array and save in snippet
+            snippet = data[start_frame:end_frame]
             sd.play(snippet, samplerate)
-            sd.wait()
+            # sd.wait()  # wait until soundbite finishes
         except self.sf.SoundFileError:
             print(f"Error: could not read {filename}")
         except Exception as e:
