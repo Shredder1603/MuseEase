@@ -5,9 +5,6 @@ import sounddevice as sd
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtCore import Qt, QMutex, QMutexLocker, pyqtSignal
 from PyQt6 import uic
-import matplotlib.pyplot as plt
-import soundfile as sf
-import threading
 
 
 class SoundGenerator:
@@ -243,9 +240,9 @@ class NotesWindow(QMainWindow):
         Inputs:
             None
         Outputs:
-            Increments the current octave value (max 8).
+            Increments the current octave value (max 7).
         '''
-        if self.current_octave < 8:
+        if self.current_octave < 7:
             self.current_octave += 1
 
     def decrease_octave(self):
