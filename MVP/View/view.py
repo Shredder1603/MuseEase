@@ -6,7 +6,11 @@ from PyQt6.QtCore import QStringListModel, Qt, QTimer, QRectF, QPointF
 from MVP.View.Notes import NotesWindow
 import sounddevice as sd
 import time
+import soundfile as sf
 import json
+import scipy
+import subprocess
+import tempfile
 import numpy as np
 import os
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -279,6 +283,11 @@ class New_Project(QMainWindow, QWidget):
         self.presenter = presenter
         self.exit_to_menu = self.findChild(QAction, "back")
         self.exit_to_menu.triggered.connect(self.exit_to_main_menu)
+        
+        # EXPORT FILE HANDLING 
+        self.exportMP3 = self.findChild(QAction, "exportMP3")
+        self.exportMP3.triggered.connect(self.export_as_mp3)
+        
     def set_button_icons(self):
         '''
         Updates play/pause button icon based on state (View)
@@ -924,6 +933,108 @@ class New_Project(QMainWindow, QWidget):
         self.playback_stream.stop()
         self.note_playback_timer.stop()
         event.accept()
+    
+    def export_as_mp3(self, output_path=None):
+        """
+        Export the current project as an MP3 file.
+        If output_path is not provided, prompt the user for a file location.
+        """
+        try:
+            # Determine output path if not provided
+            if not output_path:
+                from PyQt6.QtWidgets import QFileDialog
+                output_path, _ = QFileDialog.getSaveFileName(
+                    self, "Save MP3 File", "", "MP3 Files (*.mp3)"
+                )
+                if not output_path:
+                    QMessageBox.warning(self, "Export Failed", "No output file selected.")
+                    return
+
+            # Calculate total duration of the project (in seconds)
+            total_duration = 0
+            for container in self.containers:
+                if hasattr(container, 'recording_session') and container.recording_session['notes']:
+                    for note in container.recording_session['notes']:
+                        end_time = note['timestamp'] + note['duration']
+                        total_duration = max(total_duration, end_time)
+
+            if total_duration <= 0:
+                QMessageBox.warning(self, "Export Failed", "No audio data to export.")
+                return
+
+            # Generate audio data (sine waves for now, extend for .aiff samples later)
+            sample_rate = self.sample_rate  # 44100 Hz
+            num_samples = int(total_duration * sample_rate)
+            audio_data = np.zeros(num_samples, dtype=np.float32)
+
+            # Process each note in all containers
+            for container in self.containers:
+                if hasattr(container, 'recording_session') and container.recording_session['notes']:
+                    instrument = getattr(container, 'instrument', "Sine Wave")
+                    if instrument != "Sine Wave" and instrument in self.instruments:
+                        for note in container.recording_session['notes']:
+                            start_sample = int(note['timestamp'] * sample_rate)
+                            duration_samples = int(note['duration'] * sample_rate)
+                            note_name = note['note_name']  # Use note_name to find the .aiff sample
+
+                            # Load the .aiff sample
+                            if note_name in self.instruments[instrument]:
+                                sample_data = self.instruments[instrument][note_name]['data']
+                                sample_rate_sample = self.instruments[instrument][note_name]['sample_rate']
+
+                                # Resample if necessary (simplified, use librosa for proper resampling if needed)
+                                if sample_rate_sample != sample_rate:
+                                    from scipy import signal
+                                    sample_data = signal.resample(sample_data, int(len(sample_data) * sample_rate / sample_rate_sample))
+
+                                # Trim or loop the sample to match duration
+                                if len(sample_data) < duration_samples:
+                                    # Loop the sample if shorter than duration
+                                    num_loops = (duration_samples + len(sample_data) - 1) // len(sample_data)
+                                    sample_data = np.tile(sample_data, num_loops)[:duration_samples]
+                                elif len(sample_data) > duration_samples:
+                                    # Trim the sample if longer than duration
+                                    sample_data = sample_data[:duration_samples]
+
+                                # Apply volume scaling and mix
+                                samples = sample_data * 0.5  # Adjust volume
+                                if start_sample + duration_samples <= len(audio_data):
+                                    audio_data[start_sample:start_sample + duration_samples] += samples
+                    else:
+                        # Fallback to sine wave for Sine Wave instrument
+                        for note in container.recording_session['notes']:
+                            start_sample = int(note['timestamp'] * sample_rate)
+                            duration_samples = int(note['duration'] * sample_rate)
+                            freq = note['frequency']
+
+                            t = np.arange(duration_samples) / sample_rate
+                            samples = 0.3 * np.sin(2 * np.pi * freq * t)
+                            if start_sample + duration_samples <= len(audio_data):
+                                audio_data[start_sample:start_sample + duration_samples] += samples
+
+            # Normalize audio to prevent clipping
+            audio_data = audio_data / np.max(np.abs(audio_data)) if np.max(np.abs(audio_data)) > 0 else audio_data
+
+            # Save as temporary WAV file
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
+                wav_path = temp_wav.name
+                sf.write(wav_path, audio_data, sample_rate, format='WAV')
+
+            # Use FFmpeg to convert WAV to MP3
+            mp3_path = output_path
+            ffmpeg_cmd = [
+                'ffmpeg', '-i', wav_path, '-c:a', 'libmp3lame', '-q:a', '2',  # Quality setting (2 is VBR, good quality)
+                '-y', mp3_path  # Overwrite output file if it exists
+            ]
+            subprocess.run(ffmpeg_cmd, check=True, capture_output=True, text=True)
+
+            # Clean up temporary WAV file
+            os.unlink(wav_path)
+
+            QMessageBox.information(self, "Export Successful", f"Exported to: {mp3_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", f"Error exporting MP3: {str(e)}")
+            print(f"Export error details: {str(e)}")
         
     def exit_to_main_menu(self):
         """

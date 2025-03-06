@@ -252,6 +252,7 @@
      <string>File</string>
     </property>
     <addaction name="back"/>
+    <addaction name="exportMP3"/>
    </widget>
    <widget class="QMenu" name="edit">
     <property name="title">
@@ -271,6 +272,11 @@
   <action name="back">
    <property name="text">
     <string>Exit to Menu</string>
+   </property>
+  </action>
+  <action name="exportMP3">
+   <property name="text">
+    <string>Export as MP3</string>
    </property>
   </action>
  </widget>
