@@ -278,7 +278,7 @@ class New_Project(QMainWindow, QWidget):
         self.set_button_icons()
 
         self.autosave_file = "./Saves/autosave.muse"  # Model
-        self.note_order = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']  # Model
+        self.note_order = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']  # Model
 
         self.presenter = presenter
         self.exit_to_menu = self.findChild(QAction, "back")
