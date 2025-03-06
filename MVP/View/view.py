@@ -815,7 +815,7 @@ class New_Project(QMainWindow, QWidget):
         elapsed_time = time.time() - self.playback_start_time
         pixels_per_second = self.base_note_width * self.bpm / 60
         x_position = elapsed_time * pixels_per_second
-        if x_position >= 2000:
+        if x_position >= 4000:
             self.stop_playback_internal()
             return
         self.playhead.setLine(x_position, 0, x_position, 5 * self.track_height)
