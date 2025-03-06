@@ -16,3 +16,8 @@ Thumbs.db
 
 # Ignore environment files
 .env
+
+Saves/
+Lib/
+Scripts/
+share/
