@@ -137,7 +137,7 @@ class Tutorial(QDialog, QWidget):
         self.Drag.setPixmap(drag_png)
 
         # Find buttons and labels in the UI
-        self.close_button = self.findChild(QPushButton, 'closeButton')
+        self.close_button = self.findChild(QPushButton, 'back')
 
         # Connect the buttons to their respective methods
         self.close_button.clicked.connect(self.close_tutorial)
@@ -342,6 +342,9 @@ class New_Project(QMainWindow, QWidget):
         self.exportMP3 = self.findChild(QAction, "exportMP3")
         self.exportMP3.triggered.connect(self.export_as_mp3)
         
+        self.instruments = {}  # Initialize instruments dictionary
+        self.load_instrument_samples("Piano")  # Load piano samples
+        
     def set_button_icons(self):
         '''
         Updates play/pause button icon based on state (View)
@@ -420,6 +423,7 @@ class New_Project(QMainWindow, QWidget):
             'active_notes': {},
             'notes': []
         }
+        self.notes_window = NotesWindow()
         self.notes_window.note_started.connect(self.note_started)
         self.notes_window.note_stopped.connect(self.note_stopped)
         self.notes_window.finished.connect(self.stop_recording)
@@ -1010,7 +1014,7 @@ class New_Project(QMainWindow, QWidget):
     
     def export_as_mp3(self, output_path=None):
         """
-        Export the current project as an MP3 file.
+        Export the current project as an MP3 file using preloaded .aiff piano samples.
         If output_path is not provided, prompt the user for a file location.
         """
         try:
@@ -1026,73 +1030,89 @@ class New_Project(QMainWindow, QWidget):
 
             # Calculate total duration of the project (in seconds)
             total_duration = 0
+            pixels_per_second = self.base_note_width * self.bpm / 60  # Convert pixels to seconds
             for container in self.containers:
                 if hasattr(container, 'recording_session') and container.recording_session['notes']:
+                    container_start_time = container.x() / pixels_per_second
                     for note in container.recording_session['notes']:
-                        end_time = note['timestamp'] + note['duration']
+                        end_time = container_start_time + note['timestamp'] + note['duration']
                         total_duration = max(total_duration, end_time)
+            print(f"Calculated total duration: {total_duration} seconds")  # Debug
 
             if total_duration <= 0:
                 QMessageBox.warning(self, "Export Failed", "No audio data to export.")
                 return
 
-            # Generate audio data (sine waves for now, extend for .aiff samples later)
+            # Generate audio data using .aiff samples
             sample_rate = self.sample_rate  # 44100 Hz
             num_samples = int(total_duration * sample_rate)
             audio_data = np.zeros(num_samples, dtype=np.float32)
+            print(f"Initializing audio_data with {num_samples} samples")  # Debug
+
+            # Use piano samples exclusively
+            instrument = "Piano"
+            if instrument not in self.instruments:
+                raise ValueError(f"Instrument {instrument} not found in self.instruments")
 
             # Process each note in all containers
             for container in self.containers:
                 if hasattr(container, 'recording_session') and container.recording_session['notes']:
-                    instrument = getattr(container, 'instrument', "Sine Wave")
-                    if instrument != "Sine Wave" and instrument in self.instruments:
-                        for note in container.recording_session['notes']:
-                            start_sample = int(note['timestamp'] * sample_rate)
-                            duration_samples = int(note['duration'] * sample_rate)
-                            note_name = note['note_name']  # Use note_name to find the .aiff sample
+                    container_start_time = container.x() / pixels_per_second
+                    print(f"Processing container at x={container.x()}, start_time={container_start_time} seconds")  # Debug
+                    for note in container.recording_session['notes']:
+                        adjusted_timestamp = container_start_time + note['timestamp']
+                        start_sample = int(adjusted_timestamp * sample_rate)
+                        duration_samples = int(note['duration'] * sample_rate)
+                        note_name = note['note_name']
+                        print(f"Processing note: {note_name}, start_sample: {start_sample}, duration_samples: {duration_samples}")  # Debug
 
-                            # Load the .aiff sample
-                            if note_name in self.instruments[instrument]:
-                                sample_data = self.instruments[instrument][note_name]['data']
-                                sample_rate_sample = self.instruments[instrument][note_name]['sample_rate']
+                        # Load the .aiff sample
+                        if note_name in self.instruments[instrument]:
+                            sample_data = self.instruments[instrument][note_name]['data']
+                            sample_rate_sample = self.instruments[instrument][note_name]['sample_rate']
+                            print(f"Loaded sample for {note_name}, length: {len(sample_data)}, sample_rate: {sample_rate_sample}")  # Debug
 
-                                # Resample if necessary (simplified, use librosa for proper resampling if needed)
-                                if sample_rate_sample != sample_rate:
-                                    from scipy import signal
-                                    sample_data = signal.resample(sample_data, int(len(sample_data) * sample_rate / sample_rate_sample))
+                            # Resample if necessary
+                            if sample_rate_sample != sample_rate:
+                                from scipy import signal
+                                sample_data = signal.resample(sample_data, int(len(sample_data) * sample_rate / sample_rate_sample))
+                                print(f"Resampled {note_name} to {len(sample_data)} samples")  # Debug
 
-                                # Trim or loop the sample to match duration
-                                if len(sample_data) < duration_samples:
-                                    # Loop the sample if shorter than duration
-                                    num_loops = (duration_samples + len(sample_data) - 1) // len(sample_data)
-                                    sample_data = np.tile(sample_data, num_loops)[:duration_samples]
-                                elif len(sample_data) > duration_samples:
-                                    # Trim the sample if longer than duration
-                                    sample_data = sample_data[:duration_samples]
+                            # Trim or loop the sample to match duration
+                            if len(sample_data) < duration_samples:
+                                num_loops = (duration_samples + len(sample_data) - 1) // len(sample_data)
+                                sample_data = np.tile(sample_data, num_loops)[:duration_samples]
+                                print(f"Looped {note_name} {num_loops} times to match duration")  # Debug
+                            elif len(sample_data) > duration_samples:
+                                sample_data = sample_data[:duration_samples]
+                                print(f"Trimmed {note_name} to match duration")  # Debug
 
-                                # Apply volume scaling and mix
-                                samples = sample_data * 0.5  # Adjust volume
-                                if start_sample + duration_samples <= len(audio_data):
-                                    audio_data[start_sample:start_sample + duration_samples] += samples
-                    else:
-                        # Fallback to sine wave for Sine Wave instrument
-                        for note in container.recording_session['notes']:
-                            start_sample = int(note['timestamp'] * sample_rate)
-                            duration_samples = int(note['duration'] * sample_rate)
-                            freq = note['frequency']
-
-                            t = np.arange(duration_samples) / sample_rate
-                            samples = 0.3 * np.sin(2 * np.pi * freq * t)
-                            if start_sample + duration_samples <= len(audio_data):
-                                audio_data[start_sample:start_sample + duration_samples] += samples
+                            # Apply volume scaling and mix
+                            samples = sample_data * 0.5  # Adjust volume
+                            end_sample = start_sample + duration_samples
+                            if end_sample <= len(audio_data):
+                                audio_data[start_sample:end_sample] += samples
+                                print(f"Mixed {note_name} into audio_data[{start_sample}:{end_sample}]")  # Debug
+                            else:
+                                excess = end_sample - len(audio_data)
+                                audio_data[start_sample:] += samples[:-excess]
+                                print(f"Trimmed and mixed {note_name} due to length mismatch, excess: {excess}")  # Debug
+                        else:
+                            print(f"Warning: Sample for {note_name} not found in {instrument}")
 
             # Normalize audio to prevent clipping
-            audio_data = audio_data / np.max(np.abs(audio_data)) if np.max(np.abs(audio_data)) > 0 else audio_data
+            max_amplitude = np.max(np.abs(audio_data))
+            if max_amplitude > 0:
+                audio_data = audio_data / max_amplitude
+                print(f"Normalized audio, max amplitude: {max_amplitude}")  # Debug
+            else:
+                print("Warning: Audio data is silent (max amplitude = 0)")
 
             # Save as temporary WAV file
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
                 wav_path = temp_wav.name
                 sf.write(wav_path, audio_data, sample_rate, format='WAV')
+                print(f"Saved temporary WAV file: {wav_path}")  # Debug
 
             # Use FFmpeg to convert WAV to MP3
             mp3_path = output_path
@@ -1100,7 +1120,9 @@ class New_Project(QMainWindow, QWidget):
                 'ffmpeg', '-i', wav_path, '-c:a', 'libmp3lame', '-q:a', '2',  # Quality setting (2 is VBR, good quality)
                 '-y', mp3_path  # Overwrite output file if it exists
             ]
-            subprocess.run(ffmpeg_cmd, check=True, capture_output=True, text=True)
+            result = subprocess.run(ffmpeg_cmd, check=True, capture_output=True, text=True)
+            print(f"FFmpeg output: {result.stdout}")
+            print(f"FFmpeg errors (if any): {result.stderr}")
 
             # Clean up temporary WAV file
             os.unlink(wav_path)
@@ -1109,7 +1131,44 @@ class New_Project(QMainWindow, QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", f"Error exporting MP3: {str(e)}")
             print(f"Export error details: {str(e)}")
+    
+    def load_instrument_samples(self, instrument_name):
+        """
+        Load .aiff samples for the specified instrument into self.instruments.
+        """
+        instrument_dir = os.path.join(project_root, "Instruments", instrument_name)
+        if not os.path.exists(instrument_dir):
+            return
+        self.instruments[instrument_name] = {}
         
+        for file in os.listdir(instrument_dir):
+            if file.endswith('.aiff'):
+                note_name = os.path.splitext(file)[0]  # e.g., "C4"
+                file_path = os.path.join(instrument_dir, file)
+                try:
+                    data, sample_rate = sf.read(file_path)
+                    if data.ndim > 1:
+                        data = np.mean(data, axis=1)  # Convert stereo to mono if needed
+                    
+                    # Pre-process the sample (match SoundGenerator logic)
+                    end_frame = int(2 * sample_rate)  # 2 seconds max
+                    max_idx = np.argmax(abs(data))
+                    start_frame = 0
+                    for x in range(max_idx - 1, -1, -1):
+                        if abs(data[x]) < 0.0010:  # Threshold for silence
+                            start_frame = x
+                            break
+                    if end_frame > len(data):
+                        end_frame = len(data)
+                    snippet = data[start_frame:end_frame]
+                    
+                    self.instruments[instrument_name][note_name] = {
+                        'data': snippet,
+                        'sample_rate': sample_rate
+                    }
+                except sf.SoundFileError as e:
+                    print(f"Error loading {file_path}: {str(e)}")
+                   
     def exit_to_main_menu(self):
         """
         Closes the DAW UI and opens the Main Menu UI by notifying the Presenter.
