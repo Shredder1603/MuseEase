@@ -111,6 +111,30 @@ class Tutorial(QDialog, QWidget):
         # Load the UI from the .ui file
         ui_path = os.path.join(os.path.dirname(__file__), 'UI/Tutorial.ui')
         uic.loadUi(ui_path, self)
+        
+        forward_path = forward_png = os.path.join(os.path.dirname(__file__), 'Icons/Tutorial_Icons/FastForward.png')
+        forward_png = QPixmap(forward_path)
+        self.forward.setPixmap(forward_png)
+        
+        rewind_path = os.path.join(os.path.dirname(__file__), 'Icons/Tutorial_Icons/Rewind.png')
+        rewind_png = QPixmap(rewind_path)
+        self.rewind.setPixmap(rewind_png)
+        
+        record_path = os.path.join(os.path.dirname(__file__), 'Icons/Tutorial_Icons/Record.png')
+        record_png = QPixmap(record_path)
+        self.record.setPixmap(record_png)
+        
+        play_path = os.path.join(os.path.dirname(__file__), 'Icons/Tutorial_Icons/Play.png')
+        play_png = QPixmap(play_path)
+        self.play.setPixmap(play_png)
+        
+        metro_path = os.path.join(os.path.dirname(__file__), 'Icons/Tutorial_Icons/Metronome.png')
+        metro_png = QPixmap(metro_path)
+        self.metro.setPixmap(metro_png)
+        
+        drag_path = os.path.join(os.path.dirname(__file__), 'Icons/Tutorial_Icons/Drag_drop.png')
+        drag_png = QPixmap(drag_path)
+        self.Drag.setPixmap(drag_png)
 
         # Find buttons and labels in the UI
         self.close_button = self.findChild(QPushButton, 'closeButton')
