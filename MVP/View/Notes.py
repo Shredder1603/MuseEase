@@ -5,9 +5,7 @@ import sounddevice as sd
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtCore import Qt, QMutex, QMutexLocker, pyqtSignal
 from PyQt6 import uic
-import matplotlib.pyplot as plt
-import soundfile as sf
-import threading
+
 
 class SoundGenerator:
     '''
@@ -19,13 +17,53 @@ class SoundGenerator:
         An instance of SoundGenerator ready for generating audio.
     '''
     def __init__(self):
-        self.threading = threading
+        import soundfile as sf
         self.sf = sf
-        self.audio_path = os.getcwd() + "/Instruments/Piano/"
         self.mutex = QMutex()
         self.active_notes = {}
+        self.notes = {}
+        self.samplerate = None
+        self.read_notes()
 
-    def note_on(self, note: str):
+        self.stream = sd.OutputStream(samplerate=self.notes["A0"][1], channels=1, callback=self.audio_callback)
+        self.stream.start()
+
+    def audio_callback(self, outdata, frames, time, status):
+        """ Stream callback to play audio samples. """
+        self.mutex.lock()
+        try:
+            if not self.active_notes:
+                outdata.fill(0)
+                return
+
+            mixed = np.zeros(frames)
+
+            to_remove = []
+            for note, note_data in self.active_notes.items():
+                data, play_pos, loop = note_data["data"], note_data["play_pos"], note_data["loop"]
+                chunk = data[play_pos: play_pos + frames]
+
+                mixed[:len(chunk)] += chunk
+                play_pos += frames
+
+                if play_pos >= len(data):
+                    if loop:
+                        play_pos = 0
+                    else:
+                        to_remove.append(note)
+
+                self.active_notes[note]["play_pos"] = play_pos
+
+            for note in to_remove:
+                del self.active_notes[note]
+
+            mixed = np.clip(mixed, -1, 1)
+            outdata[:len(mixed)] = mixed.reshape(-1, 1)
+            outdata[len(mixed):] = 0
+        finally:
+            self.mutex.unlock()
+
+    def note_on(self, note: str, loop: bool = False):
 
         '''
         Function Description:
@@ -35,12 +73,16 @@ class SoundGenerator:
         Outputs:
             The note is added to active_notes and will be generated in the audio callback.
         '''
-        with QMutexLocker(self.mutex):
-            if note not in self.active_notes:
-                self.active_notes[note] = True
-                filename = self.audio_path + note + ".aiff"
-                thread = self.threading.Thread(target=self.play_audio, args=(filename,))
-                thread.start()
+        if note not in self.active_notes:
+            data, samplerate = self.notes[note]
+
+            if self.samplerate is None:
+                self.samplerate = samplerate
+
+            self.mutex.lock()
+            self.active_notes[note] = {"data": data, "play_pos": 0, "loop": loop}
+            self.mutex.unlock()
+
 
     def note_off(self, note: str):
         '''
@@ -51,38 +93,31 @@ class SoundGenerator:
         Outputs:
             The note is removed from active_notes and its phase tracking is deleted.
         '''
-        with QMutexLocker(self.mutex):
-            if note in self.active_notes:
-                del self.active_notes[note]
+        self.mutex.lock()
+        if note in self.active_notes:
+            del self.active_notes[note]
+        self.mutex.unlock()
 
-    def play_audio(self, filename: str):
-        try:
-            data, samplerate = self.sf.read(filename)
+    def read_notes(self):
+        for filename in os.listdir(os.getcwd() + "/Instruments/Piano/"):
+            filepath = os.getcwd() + "/Instruments/Piano/" + filename
+            data, samplerate = self.sf.read(filepath)
+
             if data.ndim > 1:
                 data = np.mean(data, axis=1)
 
-            end_frame = int(2 * samplerate)  # set end idx to 2 seconds in
-            max_idx = np.argmax(abs(data))  # find where sound bite has max amplitude
-            start_frame = 0  # initialize to zero idx
-
-            # find first min amplitude at idx closest to max_idx
+            max_idx = np.argmax(np.abs(data))
+            start_frame = 0
             for x in range(max_idx - 1, -1, -1):
-                if abs(data[x]) < 0.0010:
+                if np.abs(data[x]) <= 0.008 * np.abs(data[max_idx]):
                     start_frame = x
                     break
+            end_frame = len(data)
 
-            # if end idx out of bounds, set to length of data array
-            if end_frame > len(data):
-                end_frame = len(data)
-
-            # splice data array and save in snippet
             snippet = data[start_frame:end_frame]
-            sd.play(snippet, samplerate)
-            # sd.wait()  # wait until soundbite finishes
-        except self.sf.SoundFileError:
-            print(f"Error: could not read {filename}")
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+            self.notes[filename.split(".")[0]] = (snippet, samplerate)
+            if self.samplerate is None:
+                self.samplerate = samplerate
 
 class NotesWindow(QMainWindow):
     note_started = pyqtSignal(str)  # Signal for note start
@@ -205,9 +240,9 @@ class NotesWindow(QMainWindow):
         Inputs:
             None
         Outputs:
-            Increments the current octave value (max 8).
+            Increments the current octave value (max 7).
         '''
-        if self.current_octave < 8:
+        if self.current_octave < 7:
             self.current_octave += 1
 
     def decrease_octave(self):
