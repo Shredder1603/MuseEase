@@ -7,28 +7,34 @@
             "start_x": 0.0,
             "notes": [
                 {
-                    "timestamp": 1.8034050464630127,
-                    "frequency": 329.63,
-                    "duration": 0.3357996940612793,
-                    "note_name": "E4"
+                    "timestamp": 3.3880555629730225,
+                    "frequency": 261.63,
+                    "duration": 0.3074610233306885,
+                    "note_name": "C4"
                 },
                 {
-                    "timestamp": 2.657567024230957,
-                    "frequency": 349.23,
-                    "duration": 0.1426699161529541,
-                    "note_name": "F4"
+                    "timestamp": 4.084798336029053,
+                    "frequency": 277.19,
+                    "duration": 0.05508852005004883,
+                    "note_name": "Db4"
                 },
                 {
-                    "timestamp": 3.541210889816284,
-                    "frequency": 329.63,
-                    "duration": 0.16385412216186523,
-                    "note_name": "E4"
-                },
-                {
-                    "timestamp": 4.669888973236084,
+                    "timestamp": 4.55096697807312,
                     "frequency": 293.67,
-                    "duration": 0.43613386154174805,
+                    "duration": 0.026572227478027344,
                     "note_name": "D4"
+                },
+                {
+                    "timestamp": 5.471996068954468,
+                    "frequency": 311.13,
+                    "duration": 0.05404806137084961,
+                    "note_name": "Eb4"
+                },
+                {
+                    "timestamp": 6.712435245513916,
+                    "frequency": 329.63,
+                    "duration": 2.7752137184143066,
+                    "note_name": "E4"
                 }
             ]
         }
