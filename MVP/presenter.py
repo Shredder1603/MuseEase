@@ -1,5 +1,5 @@
 from MVP.Model.model import Model
-from MVP.View.view import Main_Menu, Saved_Projects, New_Project
+from MVP.View.view import Main_Menu, Saved_Projects, New_Project, Tutorial
 from PyQt6.QtWidgets import QMessageBox, QStackedWidget
 import os
 
@@ -30,6 +30,21 @@ class Presenter:
         self.main_menu.set_exit_callback(self.on_exit_requested)
         self.main_menu.set_open_saved_projects_callback(self.on_open_saved_projects_requested)
         self.main_menu.set_new_project_callback(self.on_new_project_requested)
+        self.main_menu.tutorial_button.clicked.connect(self.on_tutorial_requested) 
+        
+    def on_tutorial_requested(self):
+        """Opens the tutorial UI."""
+        self.tutorial = Tutorial(self)
+        self.stacked_widget.addWidget(self.tutorial)
+        self.stacked_widget.setCurrentWidget(self.tutorial)
+
+    def on_tutorial_closed(self):
+        """Handles the closing of the tutorial."""
+        if self.tutorial:
+            self.stacked_widget.removeWidget(self.tutorial)
+            self.tutorial = None  # Prevent reopening
+            # After closing the tutorial, switch back to the main menu
+            self.stacked_widget.setCurrentWidget(self.main_menu)
 
     def saved_projects_init(self):
         if not self.saved_projects:

@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QWidget, QLabel, QDialog, QApplication, QListView, QMessageBox, QMainWindow, QGraphicsScene,
-                             QGraphicsRectItem, QGraphicsItemGroup, QLineEdit, QHBoxLayout)
+                             QGraphicsRectItem, QGraphicsItemGroup, QLineEdit, QHBoxLayout, QPushButton)
 from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor, QCursor, QPainter, QFont, QIcon, QAction
 from PyQt6 import uic
 from PyQt6.QtCore import QStringListModel, Qt, QTimer, QRectF, QPointF
@@ -101,6 +101,28 @@ class Main_Menu(QMainWindow, QWidget):
         if self.new_project_callback:
             self.new_project_callback()
 
+class Tutorial(QDialog, QWidget):
+    def __init__(self, presenter=None):
+        super().__init__()
+        
+        # Store a reference to the presenter
+        self.presenter = presenter
+        
+        # Load the UI from the .ui file
+        ui_path = os.path.join(os.path.dirname(__file__), 'UI/Tutorial.ui')
+        uic.loadUi(ui_path, self)
+
+        # Find buttons and labels in the UI
+        self.close_button = self.findChild(QPushButton, 'closeButton')
+
+        # Connect the buttons to their respective methods
+        self.close_button.clicked.connect(self.close_tutorial)
+
+    def close_tutorial(self):
+        """Close the tutorial window and notify the presenter."""
+        if self.presenter:
+            self.presenter.on_tutorial_closed()
+        self.close()  # Close the dialog window
 
 class Saved_Projects(QDialog, QWidget):
     def __init__(self, presenter=None):
@@ -175,7 +197,7 @@ class Saved_Projects(QDialog, QWidget):
             os.remove(file_path)
             QMessageBox.information(self, "Delete Project", f"Deleted: {selected_file}")
             self.populate_saved_projects([os.path.splitext(f)[0] for f in os.listdir(folder_path) if f.endswith('.muse')])
-
+    
 
 class New_Project(QMainWindow, QWidget):
     def __init__(self, presenter=None):

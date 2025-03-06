@@ -1,36 +1,5 @@
 {
     "tempo": 120,
     "time_signature": "4/4",
-    "containers": [
-        {
-            "track": 0,
-            "start_x": 0.0,
-            "notes": [
-                {
-                    "timestamp": 1.8034050464630127,
-                    "frequency": 329.63,
-                    "duration": 0.3357996940612793,
-                    "note_name": "E4"
-                },
-                {
-                    "timestamp": 2.657567024230957,
-                    "frequency": 349.23,
-                    "duration": 0.1426699161529541,
-                    "note_name": "F4"
-                },
-                {
-                    "timestamp": 3.541210889816284,
-                    "frequency": 329.63,
-                    "duration": 0.16385412216186523,
-                    "note_name": "E4"
-                },
-                {
-                    "timestamp": 4.669888973236084,
-                    "frequency": 293.67,
-                    "duration": 0.43613386154174805,
-                    "note_name": "D4"
-                }
-            ]
-        }
-    ]
+    "containers": []
 }

@@ -1,0 +1,12 @@
+<RCC>
+  <qresource prefix="newPrefix">
+    <file>../Icons/Tutorial_Icons/FastForward.png</file>
+    <file>../Icons/Tutorial_Icons/Metronome.png</file>
+    <file>../Icons/Tutorial_Icons/Pause.png</file>
+    <file>Drag_drop.png</file>
+    <file>../Icons/Tutorial_Icons/Play.png</file>
+    <file>../Icons/Tutorial_Icons/Record.png</file>
+    <file>../Icons/Tutorial_Icons/Rewind.png</file>
+    <file>../Icons/Tutorial_Icons/Stop.png</file>
+  </qresource>
+</RCC>
