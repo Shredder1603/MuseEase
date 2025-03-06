@@ -224,6 +224,8 @@ class Saved_Projects(QDialog, QWidget):
     
 
 class New_Project(QMainWindow, QWidget):
+    from PyQt6.QtCore import QMutex
+    mutex = QMutex()
     def __init__(self, presenter=None):
         super().__init__()
 
@@ -297,11 +299,11 @@ class New_Project(QMainWindow, QWidget):
         self.active_playback_notes = {}  # Model
         self.phase = {}  # Model
         self.notes_window = NotesWindow()  # View
-        self.sound = SoundGenerator()
+        self.sound = self.notes_window.sound
         self.playback_stream = sd.OutputStream(
-            samplerate=self.sample_rate,
+            samplerate=self.sound.notes["A0"][1],
             channels=1,
-            callback=self.sound.audio_callback,
+            callback=self.playback_audio_callback,
         )  # Model
 
         self.note_playback_timer = QTimer()  # Presenter
@@ -533,7 +535,6 @@ class New_Project(QMainWindow, QWidget):
         self.playback_timer.stop()
         if self.notes_window:
             self.notes_window.close()
-            self.notes_window = None
         current_time = time.time()
         for note_name in list(self.recording_session['active_notes'].keys()):
             start_time = self.recording_session['active_notes'].pop(note_name)
@@ -743,23 +744,61 @@ class New_Project(QMainWindow, QWidget):
         for i in sorted(notes_to_remove, reverse=True):
             self.scheduled_notes.pop(i)
 
-    def note_on(self, note):
+    def note_on(self, note, loop=False):
         '''
         Plays a note for audio playback (Model)
         '''
-        self.notes_window.sound.note_on(note)
+        if note not in self.active_playback_notes:
+            data, samplerate = self.sound.notes[note]
+            self.mutex.lock()
+            self.active_playback_notes[note] = {"data": data, "play_pos": 0, "loop": loop}
+            self.mutex.unlock()
 
     def note_off(self, note):
         '''
         Stops a note for audio playback (Model)
         '''
-        self.notes_window.sound.note_off(note)
+        self.mutex.lock()
+        if note in self.active_playback_notes:
+            del self.active_playback_notes[note]
+        self.mutex.unlock()
 
     def playback_audio_callback(self, outdata, frames, time_info, status):
         '''
         Generates audio for active notes (Model)
         '''
-        self.notes_window.sound.audio_callback(outdata, frames, time_info, status)
+        self.mutex.lock()
+        try:
+            if not self.active_playback_notes:
+                outdata.fill(0)
+                return
+
+            mixed = np.zeros(frames)
+
+            to_remove = []
+            for note, note_data in self.active_playback_notes.items():
+                data, play_pos, loop = note_data["data"], note_data["play_pos"], note_data["loop"]
+                chunk = data[play_pos: play_pos + frames]
+
+                mixed[:len(chunk)] += chunk
+                play_pos += frames
+
+                if play_pos >= len(data):
+                    if loop:
+                        play_pos = 0
+                    else:
+                        to_remove.append(note)
+
+                self.active_playback_notes[note]["play_pos"] = play_pos
+
+            for note in to_remove:
+                del self.active_playback_notes[note]
+
+            mixed = np.clip(mixed, -1, 1)
+            outdata[:len(mixed)] = mixed.reshape(-1, 1)
+            outdata[len(mixed):] = 0
+        finally:
+            self.mutex.unlock()
 
     def update_playhead_continuous(self):
         '''
