@@ -11,6 +11,9 @@
      <property name="text">
       <string>Projects</string>
      </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
     </widget>
    </item>
    <item>
@@ -31,6 +34,13 @@
     <widget class="QPushButton" name="deleteProjectButton">
      <property name="text">
       <string>Delete Project</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="backButton">
+     <property name="text">
+      <string>Back</string>
      </property>
     </widget>
    </item>

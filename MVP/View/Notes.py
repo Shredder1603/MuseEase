@@ -5,6 +5,10 @@ import sounddevice as sd
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtCore import Qt, QMutex, QMutexLocker, pyqtSignal
 from PyQt6 import uic
+import matplotlib.pyplot as plt
+import soundfile as sf
+import threading
+
 
 class SoundGenerator:
     '''
