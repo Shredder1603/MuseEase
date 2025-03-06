@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (QWidget, QLabel, QDialog, QApplication, QListView, 
 from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor, QCursor, QPainter, QFont, QIcon, QAction
 from PyQt6 import uic
 from PyQt6.QtCore import QStringListModel, Qt, QTimer, QRectF, QPointF
-from MVP.View.Notes import NotesWindow
+from MVP.View.Notes import NotesWindow, SoundGenerator
 import sounddevice as sd
 import time
 import soundfile as sf
@@ -294,16 +294,15 @@ class New_Project(QMainWindow, QWidget):
         self.containers = []  # Model
 
         self.sample_rate = 44100  # Model
-        self.playback_stream = sd.OutputStream(
-            samplerate=self.sample_rate,
-            blocksize=1024,
-            channels=1,
-            callback=self.playback_audio_callback,
-            dtype='float32'
-        )  # Model
         self.active_playback_notes = {}  # Model
         self.phase = {}  # Model
-        self.notes_window = None  # View
+        self.notes_window = NotesWindow()  # View
+        self.sound = SoundGenerator()
+        self.playback_stream = sd.OutputStream(
+            samplerate=self.sample_rate,
+            channels=1,
+            callback=self.sound.audio_callback,
+        )  # Model
 
         self.note_playback_timer = QTimer()  # Presenter
         self.note_playback_timer.setInterval(10)  # Presenter
@@ -419,7 +418,6 @@ class New_Project(QMainWindow, QWidget):
             'active_notes': {},
             'notes': []
         }
-        self.notes_window = NotesWindow()
         self.notes_window.note_started.connect(self.note_started)
         self.notes_window.note_stopped.connect(self.note_stopped)
         self.notes_window.finished.connect(self.stop_recording)
@@ -478,10 +476,8 @@ class New_Project(QMainWindow, QWidget):
             start_time = self.recording_session['active_notes'].pop(note_name)
             stop_time = time.time()
             duration = stop_time - start_time
-            frequency = self.note_to_frequency(note_name)
             self.recording_session['notes'].append({
                 'timestamp': start_time - self.recording_session['start_time'],
-                'frequency': frequency,
                 'duration': duration,
                 'note_name': note_name
             })
@@ -542,10 +538,8 @@ class New_Project(QMainWindow, QWidget):
         for note_name in list(self.recording_session['active_notes'].keys()):
             start_time = self.recording_session['active_notes'].pop(note_name)
             duration = current_time - start_time
-            frequency = self.note_to_frequency(note_name)
             self.recording_session['notes'].append({
                 'timestamp': start_time - self.recording_session['start_time'],
-                'frequency': frequency,
                 'duration': duration,
                 'note_name': note_name
             })
@@ -719,10 +713,10 @@ class New_Project(QMainWindow, QWidget):
                 adjusted_start_time = note['timestamp'] + container_x_time
                 elapsed = time.time() - self.playback_start_time
                 if adjusted_start_time <= elapsed <= adjusted_start_time + note['duration']:
-                    self.active_playback_notes[note['frequency']] = True
+                    self.active_playback_notes[note['note_name']] = True
                 elif adjusted_start_time > elapsed:
                     self.scheduled_notes.append({
-                        'frequency': note['frequency'],
+                        'name': note['note_name'],
                         'start_time': adjusted_start_time,
                         'duration': note['duration']
                     })
@@ -738,47 +732,34 @@ class New_Project(QMainWindow, QWidget):
         for i, note in enumerate(self.scheduled_notes):
             start_time = note['start_time']
             end_time = start_time + note['duration']
-            freq = note['frequency']
+            name = note['name']
             if start_time <= current_time < end_time:
-                if freq not in self.active_playback_notes:
-                    self.note_on(freq)
+                if name not in self.active_playback_notes:
+                    self.sound.note_on(name)
             elif current_time >= end_time:
-                self.note_off(freq)
+                self.sound.note_off(name)
                 notes_to_remove.append(i)
 
         for i in sorted(notes_to_remove, reverse=True):
             self.scheduled_notes.pop(i)
 
-    def note_on(self, frequency):
+    def note_on(self, note):
         '''
         Plays a note for audio playback (Model)
         '''
-        self.active_playback_notes[frequency] = True
-        if frequency not in self.phase:
-            self.phase[frequency] = 0
+        self.notes_window.sound.note_on(note)
 
-    def note_off(self, frequency):
+    def note_off(self, note):
         '''
         Stops a note for audio playback (Model)
         '''
-        if frequency in self.active_playback_notes:
-            del self.active_playback_notes[frequency]
-        if frequency in self.phase:
-            del self.phase[frequency]
+        self.notes_window.sound.note_off(note)
 
     def playback_audio_callback(self, outdata, frames, time_info, status):
         '''
         Generates audio for active notes (Model)
         '''
-        outdata.fill(0)
-        t = np.arange(frames) / self.sample_rate
-        for freq in list(self.active_playback_notes.keys()):
-            if freq not in self.phase:
-                self.phase[freq] = 0
-            samples = 0.3 * np.sin(2 * np.pi * freq * t + self.phase[freq])
-            outdata[:, 0] += samples
-            self.phase[freq] += 2 * np.pi * freq * frames / self.sample_rate
-            self.phase[freq] %= 2 * np.pi
+        self.notes_window.sound.audio_callback(outdata, frames, time_info, status)
 
     def update_playhead_continuous(self):
         '''
