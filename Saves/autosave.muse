@@ -7,58 +7,28 @@
             "start_x": 0.0,
             "notes": [
                 {
-                    "timestamp": 0.5845263004302979,
-                    "frequency": 261.63,
-                    "duration": 0.20025300979614258,
-                    "note_name": "C4"
-                },
-                {
-                    "timestamp": 0.8198165893554688,
-                    "frequency": 293.67,
-                    "duration": 0.17769122123718262,
-                    "note_name": "D4"
-                },
-                {
-                    "timestamp": 1.0252296924591064,
+                    "timestamp": 1.8034050464630127,
                     "frequency": 329.63,
-                    "duration": 0.19902825355529785,
+                    "duration": 0.3357996940612793,
                     "note_name": "E4"
                 },
                 {
-                    "timestamp": 1.2285964488983154,
+                    "timestamp": 2.657567024230957,
                     "frequency": 349.23,
-                    "duration": 0.2001791000366211,
+                    "duration": 0.1426699161529541,
                     "note_name": "F4"
                 },
                 {
-                    "timestamp": 1.4744212627410889,
-                    "frequency": 392.0,
-                    "duration": 0.18815279006958008,
-                    "note_name": "G4"
-                },
-                {
-                    "timestamp": 1.73012113571167,
-                    "frequency": 349.23,
-                    "duration": 0.16584300994873047,
-                    "note_name": "F4"
-                },
-                {
-                    "timestamp": 1.934617519378662,
+                    "timestamp": 3.541210889816284,
                     "frequency": 329.63,
-                    "duration": 0.14642763137817383,
+                    "duration": 0.16385412216186523,
                     "note_name": "E4"
                 },
                 {
-                    "timestamp": 2.130868673324585,
+                    "timestamp": 4.669888973236084,
                     "frequency": 293.67,
-                    "duration": 0.17035794258117676,
+                    "duration": 0.43613386154174805,
                     "note_name": "D4"
-                },
-                {
-                    "timestamp": 2.3381574153900146,
-                    "frequency": 261.63,
-                    "duration": 0.9179189205169678,
-                    "note_name": "C4"
                 }
             ]
         }

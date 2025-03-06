@@ -115,9 +115,16 @@ class Saved_Projects(QDialog, QWidget):
         self.deleteProjectButton = getattr(self, "deleteProjectButton")
         self.deleteProjectButton.clicked.connect(self.delete_selected_project)
 
-        # Prevent user from editing the QListView
+        self.backButton = getattr(self, "backButton")
+        self.backButton.clicked.connect(self.on_back_button_clicked)  # Connect back button
+
         self.savedProjectsListView = getattr(self, "savedProjectsListView")
         self.savedProjectsListView.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
+
+    def on_back_button_clicked(self):
+        """Handles the back button click event to return to the main menu."""
+        if self.presenter:
+            self.presenter.on_exit_to_menu_requested()
 
     def populate_saved_projects(self, files):
         """Populates the saved projects list."""

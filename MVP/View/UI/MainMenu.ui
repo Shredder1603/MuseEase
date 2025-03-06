@@ -31,7 +31,7 @@
      <number>0</number>
     </property>
     <item row="1" column="0">
-     <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0">
       <property name="spacing">
        <number>6</number>
       </property>
@@ -101,6 +101,33 @@ QPushButton:hover {
         </property>
         <property name="text">
          <string>View Saved</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="tutorial_button">
+        <property name="font">
+         <font>
+          <family>Arial Rounded MT Bold</family>
+          <pointsize>30</pointsize>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QPushButton {
+    background-color: #3498db;
+    border: 3px solid rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    color: white;
+    padding: 10px 20px;
+}
+
+QPushButton:hover {
+    background-color: #2980b9;
+}</string>
+        </property>
+        <property name="text">
+         <string>Tutorial</string>
         </property>
        </widget>
       </item>

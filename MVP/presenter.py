@@ -32,41 +32,33 @@ class Presenter:
         self.main_menu.set_new_project_callback(self.on_new_project_requested)
 
     def saved_projects_init(self):
-        
         if not self.saved_projects:
             print("Recreating Saved_Projects instance")
             self.saved_projects = Saved_Projects(self)
             self.stacked_widget.addWidget(self.saved_projects)
-        
+
         folder_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "MuseEase/Saves")
         os.makedirs(folder_path, exist_ok=True)
 
-        # Debug: Check if the directory and files exist
         print(f"Looking for .muse files in: {folder_path}")
         try:
             files = os.listdir(folder_path)
             print(f"Found files: {files}")
-        except PermissionError as e:
-            print(f"Permission error accessing Saves directory: {e}")
-            print(self.saved_projects, "Permission Error", f"Cannot access Saves directory: {str(e)}")
-            return
-        except FileNotFoundError as e:
-            print(f"Saves directory not found: {e}")
-            print(self.saved_projects, "Directory Error", f"Saves directory not found: {str(e)}")
+        except (PermissionError, FileNotFoundError) as e:
+            print(f"Error accessing Saves directory: {e}")
             return
 
-        muse_files = [f for f in files if f.lower().endswith('.muse')]  # Case-insensitive check
+        muse_files = [f for f in files if f.lower().endswith('.muse')]
         if not muse_files:
             print("No .muse files found in the directory.")
-            print(self.saved_projects, "No Projects", "No saved projects found in Saves directory.")
             return
 
-        files = [os.path.splitext(f)[0] for f in muse_files]  # Extract base names (e.g., "autosave")
+        files = [os.path.splitext(f)[0] for f in muse_files]
         print(f"Filtered .muse files (base names): {files}")
 
-        # Populate the SavedProjects window
         if files and self.saved_projects:
             self.saved_projects.populate_saved_projects(files)
+            self.saved_projects.backButton.clicked.connect(self.on_exit_to_menu_requested)
 
     def new_project_init(self):
         pass
