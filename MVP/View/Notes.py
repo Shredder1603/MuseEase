@@ -6,6 +6,8 @@ from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtCore import Qt, QMutex, QMutexLocker, pyqtSignal
 from PyQt6 import uic
 import matplotlib.pyplot as plt
+import soundfile as sf
+import threading
 
 class SoundGenerator:
     '''
@@ -17,8 +19,6 @@ class SoundGenerator:
         An instance of SoundGenerator ready for generating audio.
     '''
     def __init__(self):
-        import soundfile as sf
-        import threading
         self.threading = threading
         self.sf = sf
         self.audio_path = os.getcwd() + "/Instruments/Piano/"
