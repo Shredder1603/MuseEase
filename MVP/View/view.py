@@ -137,7 +137,7 @@ class Tutorial(QDialog, QWidget):
         self.Drag.setPixmap(drag_png)
 
         # Find buttons and labels in the UI
-        self.close_button = self.findChild(QPushButton, 'closeButton')
+        self.close_button = self.findChild(QPushButton, 'back')
 
         # Connect the buttons to their respective methods
         self.close_button.clicked.connect(self.close_tutorial)
