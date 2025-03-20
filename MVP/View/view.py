@@ -244,9 +244,13 @@ class New_Project(QMainWindow, QWidget):
 
         self.track_scene = QGraphicsScene()  # View
         self.trackView.setScene(self.track_scene)  # View
+        self.trackView.setInteractive(True)
         self.trackView.setRenderHint(QPainter.RenderHint.Antialiasing, True)  # View
         self.trackView.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)  # View
+        self.track_scene.selectionChanged.connect(self.update_track_selection_feedback)  # View
 
+        self.containers = []  # Model
+        
         self.time_layout = QHBoxLayout(self.timeView)  # View
         self.timeView.setFixedHeight(60)  # View
         self.measure_edit = QLineEdit(f"Measure: {self.current_measure}:{self.current_beat}")  # View
@@ -293,7 +297,6 @@ class New_Project(QMainWindow, QWidget):
         self.paused_position = None  # Presenter
         self.current_container = None  # Presenter
         self.active_note_items = {}  # View
-        self.containers = []  # Model
 
         self.sample_rate = 44100  # Model
         self.active_playback_notes = {}  # Model
@@ -345,6 +348,44 @@ class New_Project(QMainWindow, QWidget):
         self.instruments = {}  # Initialize instruments dictionary
         self.load_instrument_samples("Piano")  # Load piano samples
         
+    def keyPressEvent(self, event):
+        """Handle key presses, including Delete to remove selected track."""
+        if event.key() == Qt.Key.Key_Delete:
+            selected_items = self.track_scene.selectedItems()
+            if selected_items:
+                self.delete_selected_container(selected_items[0])  # Delete the first selected item
+        super().keyPressEvent(event) 
+    
+    def delete_selected_container(self, container):
+        """Remove the specified container from the scene and containers list."""
+        if container in self.containers:
+            self.track_scene.removeItem(container)
+            self.containers.remove(container)
+            self.autosave()  # Save after deletion
+            self.update_tracks_and_markers()   
+    
+    def mousePressEvent(self, event):
+        '''
+        Update selected container when clicking on one.
+        '''
+        item = self.trackView.itemAt(event.pos())
+        if isinstance(item, self.DraggableContainer):
+            self.selected_container = item
+            # Optional: Highlight the selected container
+            item.setPen(QPen(QColor(255, 0, 0), 2))  # Red border for selection
+            for container in self.containers:
+                if container != item:
+                    container.setPen(QPen(QColor(70, 130, 180, 200), 2))  # Reset others
+        super().mousePressEvent(event)
+        
+    def update_container_selection_feedback(self):
+        """Update visual feedback for selected containers."""
+        for container in self.containers:
+            if container.isSelected():
+                container.setPen(QPen(QColor(255, 0, 0), 2))  # Red border 
+            else:
+                container.setPen(QPen(QColor(70, 130, 180, 200), 2))  # Default border  
+                        
     def set_button_icons(self):
         '''
         Updates play/pause button icon based on state (View)
@@ -355,20 +396,35 @@ class New_Project(QMainWindow, QWidget):
             icon = QIcon(self.play_icon_path)
         self.play.setIcon(icon)
 
+    def update_track_selection_feedback(self):
+        for track in self.track_rects:
+            if track.isSelected():
+                track.setBrush(QBrush(QColor(255, 45, 45, 100)))  # Red tint for selected track
+                track.setPen(QPen(QColor(255, 0, 0), 2))
+            else:
+                track.setBrush(QBrush(QColor(45, 45, 45)))  # Default gray
+                track.setPen(QPen(QColor(80, 80, 80)))
+                
     def update_tracks_and_markers(self):
         '''
-        Redrwas track backgrounds, measure lines, and labels (View)
+        Redraws track backgrounds, measure lines, and labels (View)
         '''
         self.track_background_group = QGraphicsItemGroup()
         self.track_scene.addItem(self.track_background_group)
         view_width = max(self.trackView.width(), self.current_x + 2000)
         track_brush = QBrush(QColor(45, 45, 45))
         track_pen = QPen(QColor(80, 80, 80))
+        self.track_rects = []  # Store track rectangles for selection
         for i in range(5):
             track = QGraphicsRectItem(0, i * self.track_height, view_width, self.track_height)
             track.setBrush(track_brush)
             track.setPen(track_pen)
+            track.setData(0, i)  # Store track index
+            track.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable, True)  # Make selectable
+            track.setAcceptHoverEvents(True)  # For feedback
             self.track_background_group.addToGroup(track)
+            self.track_rects.append(track)
+        
         measure_pen = QPen(QColor(100, 100, 100), 2, Qt.PenStyle.SolidLine)
         beat_tick_pen = QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DotLine)
         measures = int(view_width / self.measure_width) + 2
@@ -383,7 +439,9 @@ class New_Project(QMainWindow, QWidget):
             text.setPos(x_pos + 10, 5)
             text.setDefaultTextColor(QColor(150, 150, 150))
             self.track_background_group.addToGroup(text)
+        
         self.track_scene.setSceneRect(0, 0, view_width, 5 * self.track_height)
+        self.update_track_selection_feedback()  # Update visual feedback
 
     def update_time_display(self):
         '''
@@ -430,16 +488,30 @@ class New_Project(QMainWindow, QWidget):
         self.notes_window.show()
         self.snap_notes_window()
 
-        self.current_container = self.DraggableContainer(self.track_height, self.current_x, 0, 0, self.track_height)
+        # Determine selected track
+        selected_items = self.track_scene.selectedItems()
+        if selected_items and isinstance(selected_items[0], QGraphicsRectItem):
+            track_index = selected_items[0].data(0)  # Get track index from data
+            y_position = track_index * self.track_height
+            print(f"Recording on track {track_index}")
+        else:
+            track_index = 0
+            y_position = 0
+            print("No track selected, defaulting to track 0")
+
+        # Use playhead position for x
+        start_x = self.playhead.line().x1()  # Start at red playhead
+        self.current_container = self.DraggableContainer(self.track_height, start_x, 0, 0, self.track_height)
+        self.current_container.setPos(start_x, y_position)
+        self.current_container.current_track = track_index
         self.current_container.setBrush(QBrush(QColor(173, 216, 230, 100)))
         self.current_container.setPen(QPen(QColor(70, 130, 180, 200), 2))
         self.track_scene.addItem(self.current_container)
         self.containers.append(self.current_container)
         self.update_timer.start()
-        self.playhead.setLine(0, 0, 0, 5 * self.track_height)
-        self.playhead.setVisible(True)
         self.playback_start_time = self.recording_session['start_time']
         self.playback_timer.start()
+        self.update_tracks_and_markers()  # Ensure scene is wide enough
 
     def snap_notes_window(self):
         print("snapping notes lol")
@@ -463,12 +535,14 @@ class New_Project(QMainWindow, QWidget):
         if self.recording and note_name not in self.recording_session['active_notes']:
             start_time = time.time()
             self.recording_session['active_notes'][note_name] = start_time
+            # Calculate timestamp relative to playhead position
+            playhead_x = self.playhead.line().x1()
             time_per_beat = 60 / self.bpm
             start_beat = (start_time - self.recording_session['start_time']) / time_per_beat
-            x = start_beat * self.base_note_width
+            x = playhead_x + (start_beat * self.base_note_width)  # Offset from playhead
             y = self.calculate_note_position(note_name)
             note = QGraphicsRectItem(0, 0, 0, self.note_height)
-            note.setPos(x, y)
+            note.setPos(x - self.current_container.x(), y)  # Relative to container’s start
             note.setBrush(QBrush(QColor(100, 149, 237)))
             note.setPen(QPen(Qt.GlobalColor.white))
             note.setParentItem(self.current_container)
@@ -553,12 +627,9 @@ class New_Project(QMainWindow, QWidget):
                 note.setRect(0, 0, (duration * self.bpm / 60) * self.base_note_width, self.note_height)
         self.update_container_size()
         if self.current_container:
-            self.current_x += self.current_container.rect().width()
             self.current_container.recording_session = self.recording_session
             self.current_container = None
         self.update_tracks_and_markers()
-        self.playhead.setLine(0, 0, 0, 5 * self.track_height)
-        self.playhead.setVisible(True)
         self.autosave()
 
     def note_to_frequency(self, note_name):
@@ -771,38 +842,23 @@ class New_Project(QMainWindow, QWidget):
         '''
         Generates audio for active notes (Model)
         '''
-        self.mutex.lock()
-        try:
-            if not self.active_playback_notes:
-                outdata.fill(0)
-                return
+        self.notes_window.sound.audio_callback(outdata, frames, time_info, status)
 
-            mixed = np.zeros(frames)
-
-            to_remove = []
-            for note, note_data in self.active_playback_notes.items():
-                data, play_pos, loop = note_data["data"], note_data["play_pos"], note_data["loop"]
-                chunk = data[play_pos: play_pos + frames]
-
-                mixed[:len(chunk)] += chunk
-                play_pos += frames
-
-                if play_pos >= len(data):
-                    if loop:
-                        play_pos = 0
-                    else:
-                        to_remove.append(note)
-
-                self.active_playback_notes[note]["play_pos"] = play_pos
-
-            for note in to_remove:
-                del self.active_playback_notes[note]
-
-            mixed = np.clip(mixed, -1, 1)
-            outdata[:len(mixed)] = mixed.reshape(-1, 1)
-            outdata[len(mixed):] = 0
-        finally:
-            self.mutex.unlock()
+    def get_project_end(self):
+        '''
+        Calculate the total length of the project in pixels.
+        '''
+        if not self.containers:
+            return 0
+        max_end = 0
+        pixels_per_second = self.base_note_width * self.bpm / 60
+        for container in self.containers:
+            if hasattr(container, 'recording_session') and container.recording_session['notes']:
+                container_start_time = container.x() / pixels_per_second
+                for note in container.recording_session['notes']:
+                    end_time = (container_start_time + note['timestamp'] + note['duration']) * pixels_per_second
+                    max_end = max(max_end, end_time)
+        return max_end
 
     def update_playhead_continuous(self):
         '''
@@ -815,9 +871,12 @@ class New_Project(QMainWindow, QWidget):
         elapsed_time = time.time() - self.playback_start_time
         pixels_per_second = self.base_note_width * self.bpm / 60
         x_position = elapsed_time * pixels_per_second
-        if x_position >= 4000:
+        project_end = self.get_project_end()
+        
+        if x_position >= project_end:
             self.stop_playback_internal()
             return
+        
         self.playhead.setLine(x_position, 0, x_position, 5 * self.track_height)
         self.playhead.setVisible(True)
         beat_position = x_position / self.base_note_width
@@ -1204,3 +1263,7 @@ class New_Project(QMainWindow, QWidget):
             new_y = round(self.y() / self.track_height) * self.track_height
             self.setY(new_y)
             self.current_track = int(new_y / self.track_height)
+        
+        def mousePressEvent(self, event):
+            print(f"Container clicked at track {self.current_track}")  # Debug
+            super().mousePressEvent(event)

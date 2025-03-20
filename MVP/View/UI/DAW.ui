@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1246</width>
-    <height>666</height>
+    <width>1440</width>
+    <height>676</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -32,8 +32,11 @@
      <height>50</height>
     </size>
    </property>
-   <layout class="QVBoxLayout" name="verticalLayout_2">
-    <item>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="1" column="1">
+     <widget class="QGraphicsView" name="trackView"/>
+    </item>
+    <item row="0" column="1">
      <layout class="QVBoxLayout" name="verticalLayout">
       <property name="sizeConstraint">
        <enum>QLayout::SetMinimumSize</enum>
@@ -233,8 +236,136 @@
       </item>
      </layout>
     </item>
-    <item>
-     <widget class="QGraphicsView" name="trackView"/>
+    <item row="1" column="0">
+     <widget class="QGroupBox" name="trackControls">
+      <property name="minimumSize">
+       <size>
+        <width>200</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>200</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="title">
+       <string/>
+      </property>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="10" column="0">
+        <widget class="QSlider" name="volume5">
+         <property name="minimumSize">
+          <size>
+           <width>200</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QSlider" name="volume1">
+         <property name="minimumSize">
+          <size>
+           <width>200</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QComboBox" name="instrument1"/>
+       </item>
+       <item row="7" column="0">
+        <widget class="QComboBox" name="instrument4"/>
+       </item>
+       <item row="8" column="0">
+        <widget class="QSlider" name="volume4">
+         <property name="minimumSize">
+          <size>
+           <width>200</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QSlider" name="volume2">
+         <property name="minimumSize">
+          <size>
+           <width>200</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="0">
+        <widget class="QComboBox" name="instrument5"/>
+       </item>
+       <item row="2" column="0">
+        <widget class="QComboBox" name="instrument2"/>
+       </item>
+       <item row="6" column="0">
+        <widget class="QSlider" name="volume3">
+         <property name="minimumSize">
+          <size>
+           <width>200</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QComboBox" name="instrument3"/>
+       </item>
+      </layout>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -243,7 +374,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1246</width>
+     <width>1440</width>
      <height>22</height>
     </rect>
    </property>
