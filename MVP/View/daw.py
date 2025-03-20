@@ -145,7 +145,9 @@ class DAW(QMainWindow, QWidget):
         self.load_instrument_samples("Piano")
 
     def keyPressEvent(self, event):
-        """Handle key presses, including Delete to remove selected track."""
+        '''
+        Handle key presses, including Delete to remove selected track.
+        '''
         if event.key() == Qt.Key.Key_Delete:
             selected_items = self.track_scene.selectedItems()
             if selected_items:
@@ -153,7 +155,9 @@ class DAW(QMainWindow, QWidget):
         super().keyPressEvent(event) 
     
     def delete_selected_container(self, container):
-        """Remove the specified container from the scene and containers list."""
+        '''
+        Remove the specified container from the scene and containers list.
+        '''
         if container in self.containers:
             self.track_scene.removeItem(container)
             self.containers.remove(container)
@@ -174,7 +178,9 @@ class DAW(QMainWindow, QWidget):
         super().mousePressEvent(event)
         
     def update_container_selection_feedback(self):
-        """Update visual feedback for selected containers."""
+        '''
+        Update visual feedback for selected containers.
+        '''
         for container in self.containers:
             if container.isSelected():
                 container.setPen(QPen(QColor(255, 0, 0), 2))
@@ -845,9 +851,9 @@ class DAW(QMainWindow, QWidget):
         event.accept()
     
     def export_as_mp3(self, output_path=None):
-        """
+        '''
         Export the current project as an MP3 file using preloaded .aiff piano samples.
-        """
+        '''
         try:
             if not output_path:
                 output_path, _ = QFileDialog.getSaveFileName(
@@ -950,9 +956,9 @@ class DAW(QMainWindow, QWidget):
             print(f"Export error details: {str(e)}")
     
     def load_instrument_samples(self, instrument_name):
-        """
+        '''
         Load .aiff samples for the specified instrument into self.instruments.
-        """
+        '''
         instrument_dir = os.path.join(project_root, "Instruments", instrument_name)
         if not os.path.exists(instrument_dir):
             return
@@ -986,9 +992,9 @@ class DAW(QMainWindow, QWidget):
                     print(f"Error loading {file_path}: {str(e)}")
                    
     def exit_to_main_menu(self):
-        """
+        '''
         Closes the DAW UI and opens the Main Menu UI by notifying the Presenter.
-        """
+        '''
         if self.presenter:
             self.presenter.on_exit_to_menu_requested()
         else:
