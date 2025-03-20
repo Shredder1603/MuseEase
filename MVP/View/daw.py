@@ -1,152 +1,189 @@
-import sys
-import os
-import time
-import json
-import numpy as np
-import sounddevice as sd
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QGraphicsView, 
-                            QGraphicsScene, QGraphicsRectItem, QGraphicsItemGroup, 
-                            QLineEdit, QWidget, QHBoxLayout)
-from PyQt6.QtGui import QBrush, QPen, QColor, QCursor, QPainter, QFont, QIcon
-from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF
+# MVP/View/daw.py
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QLineEdit, QHBoxLayout, QMessageBox, QFileDialog, QGraphicsScene,
+                             QGraphicsRectItem, QGraphicsItemGroup)
+from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction
 from PyQt6 import uic
+from PyQt6.QtCore import Qt, QTimer, QRectF
+from .Notes import NotesWindow, SoundGenerator
+from .draggable_container import DraggableContainer
+import sounddevice as sd
+import time
+import soundfile as sf
+import json
+import scipy
+import subprocess
+import tempfile
+import numpy as np
+import os
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-sys.path.insert(0, project_root)
-from Notes import NotesWindow
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-class DraggableContainer(QGraphicsRectItem):
-    def __init__(self, track_height, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.track_height = track_height
-        self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable, True)
-        self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable, True)
-        self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
-        self.setZValue(1)
-        self.notes_group = QGraphicsItemGroup(self)
-        self.current_track = 0
-
-    def mouseMoveEvent(self, event):
-        super().mouseMoveEvent(event)
-        self.snap_to_tracks()
-        if self.x() < 0:
-            self.setX(0)
-
-    def snap_to_tracks(self):
-        new_y = round(self.y() / self.track_height) * self.track_height
-        self.setY(new_y)
-        self.current_track = int(new_y / self.track_height)
-
-class DAWTest(QMainWindow):
-    def __init__(self):
+class DAW(QMainWindow, QWidget):
+    def __init__(self, presenter=None):
         super().__init__()
-        
-        ui_path = os.path.join(os.path.dirname(__file__), "UI/DAW.ui")
+
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        ui_path = os.path.join(project_root, "MVP", "View", "UI", "DAW.ui")
+        print(f"UI Path: {ui_path}")
         uic.loadUi(ui_path, self)
+
+        self.track_height = 80
+        self.base_note_width = 100
+        self.note_height = 20
+        self.current_x = 0
+        self.measure_width = 400
+        self.bpm = 120
+        self.time_signature = "4/4"
+        self.current_measure = 1
+        self.current_beat = 1
+
+        self.track_scene = QGraphicsScene()
+        self.trackView.setScene(self.track_scene)
+        self.trackView.setInteractive(True)
+        self.trackView.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        self.trackView.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.track_scene.selectionChanged.connect(self.update_track_selection_feedback)
+
+        self.containers = []
         
-        self.track_height = 80 # View
-        self.base_note_width = 100 # View
-        self.note_height = 20 # View
-        self.current_x = 0 # Presenter
-        self.measure_width = 400 # View
-        self.bpm = 120 # Model
-        self.time_signature = "4/4" # Model
-        self.current_measure = 1 # Presenter
-        self.current_beat = 1 # Presenter
-        
-        self.track_scene = QGraphicsScene() # View
-        self.trackView.setScene(self.track_scene) # View
-        self.trackView.setRenderHint(QPainter.RenderHint.Antialiasing, True) # View
-        self.trackView.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn) # View
-        
-        self.time_layout = QHBoxLayout(self.timeView) # View
-        self.timeView.setFixedHeight(60) # View
-        self.measure_edit = QLineEdit(f"Measure: {self.current_measure}:{self.current_beat}") # View
-        self.tempo_edit = QLineEdit(f"Tempo: {self.bpm} BPM") # View
-        self.time_edit = QLineEdit(f"Time: {self.time_signature}") # View
-        self.time_layout.addWidget(self.measure_edit) # View
-        self.time_layout.addSpacing(20) # View
-        self.time_layout.addWidget(self.tempo_edit) # View
-        self.time_layout.addSpacing(20) # View
-        self.time_layout.addWidget(self.time_edit) # View
-        
-        font = QFont("Arial", 12) # View
-        self.measure_edit.setFont(font) # View
-        self.tempo_edit.setFont(font) # View
-        self.time_edit.setFont(font) # View
-        self.measure_edit.setStyleSheet("QLineEdit {color: #C8C8C8; background-color: #333333; padding: 5px; border: none; qproperty-alignment: AlignCenter;} QLineEdit:focus {background-color: white; border: 1px solid gray;}") # View
-        self.tempo_edit.setStyleSheet("QLineEdit {color: #C8C8C8; background-color: #333333; padding: 5px; border: none; qproperty-alignment: AlignCenter;} QLineEdit:focus {background-color: white; border: 1px solid gray;}") # View
-        self.time_edit.setStyleSheet("QLineEdit {color: #C8C8C8; background-color: #333333; padding: 5px; border: none; qproperty-alignment: AlignCenter;} QLineEdit:focus {background-color: white; border: 1px solid gray;}") # View
-        self.timeView.setStyleSheet("background-color: #333333; border: 1px solid #555555;") # View
-        
-        self.measure_edit.editingFinished.connect(self.update_measure) # View
-        self.tempo_edit.editingFinished.connect(self.update_tempo) # View
-        self.time_edit.editingFinished.connect(self.update_time) # View
-        
-        self.track_background_group = QGraphicsItemGroup() # View
-        self.track_scene.addItem(self.track_background_group) # View
-        self.update_tracks_and_markers() # View
-        self.update_time_display() # View
-        
-        self.recording = False # Presenter
-        self.recording_session = None # Model
-        self.playing = False # Presenter
-        self.paused = False # Presenter
-        self.playback_timer = QTimer() # Presenter
-        self.playback_timer.setInterval(10) # Presenter
-        self.playback_timer.timeout.connect(self.update_playhead_continuous) # Presenter
-        self.playhead = self.track_scene.addLine(0, 0, 0, 5 * self.track_height, QPen(Qt.GlobalColor.red, 2)) # View
-        self.playhead.setZValue(10) # View
-        self.playhead.setVisible(True) # View
-        self.playback_start_time = None # Presenter
-        self.paused_position = None # Presenter
-        self.current_container = None # Presenter
-        self.active_note_items = {} # View
-        self.containers = [] # Model
-        
-        self.sample_rate = 44100 # Model
+        self.time_layout = QHBoxLayout(self.timeView)
+        self.timeView.setFixedHeight(60)
+        self.measure_edit = QLineEdit(f"Measure: {self.current_measure}:{self.current_beat}")
+        self.tempo_edit = QLineEdit(f"Tempo: {self.bpm} BPM")
+        self.time_edit = QLineEdit(f"Time: {self.time_signature}")
+        self.time_layout.addWidget(self.measure_edit)
+        self.time_layout.addSpacing(20)
+        self.time_layout.addWidget(self.tempo_edit)
+        self.time_layout.addSpacing(20)
+        self.time_layout.addWidget(self.time_edit)
+
+        font = QFont("Arial", 12)
+        self.measure_edit.setFont(font)
+        self.tempo_edit.setFont(font)
+        self.time_edit.setFont(font)
+        self.measure_edit.setStyleSheet(
+            "QLineEdit {color: #C8C8C8; background-color: #333333; padding: 5px; border: none; qproperty-alignment: AlignCenter;} QLineEdit:focus {background-color: white; border: 1px solid gray;}")
+        self.tempo_edit.setStyleSheet(
+            "QLineEdit {color: #C8C8C8; background-color: #333333; padding: 5px; border: none; qproperty-alignment: AlignCenter;} QLineEdit:focus {background-color: white; border: 1px solid gray;}")
+        self.time_edit.setStyleSheet(
+            "QLineEdit {color: #C8C8C8; background-color: #333333; padding: 5px; border: none; qproperty-alignment: AlignCenter;} QLineEdit:focus {background-color: white; border: 1px solid gray;}")
+        self.timeView.setStyleSheet("background-color: #333333; border: 1px solid #555555;")
+
+        self.measure_edit.editingFinished.connect(self.update_measure)
+        self.tempo_edit.editingFinished.connect(self.update_tempo)
+        self.time_edit.editingFinished.connect(self.update_time)
+
+        self.track_background_group = QGraphicsItemGroup()
+        self.track_scene.addItem(self.track_background_group)
+        self.update_tracks_and_markers()
+        self.update_time_display()
+
+        self.recording = False
+        self.recording_session = None
+        self.playing = False
+        self.paused = False
+        self.playback_timer = QTimer()
+        self.playback_timer.setInterval(10)
+        self.playback_timer.timeout.connect(self.update_playhead_continuous)
+        self.playhead = self.track_scene.addLine(0, 0, 0, 5 * self.track_height, QPen(Qt.GlobalColor.red, 2))
+        self.playhead.setZValue(10)
+        self.playhead.setVisible(True)
+        self.playback_start_time = None
+        self.paused_position = None
+        self.current_container = None
+        self.active_note_items = {}
+
+        self.sample_rate = 44100
+        self.active_playback_notes = {}
+        self.phase = {}
+        self.notes_window = NotesWindow()
+        self.sound = SoundGenerator()
         self.playback_stream = sd.OutputStream(
             samplerate=self.sample_rate,
-            blocksize=1024,
             channels=1,
-            callback=self.playback_audio_callback,
-            dtype='float32'
-        ) # Model
-        self.active_playback_notes = {} # Model
-        self.phase = {} # Model
-        self.notes_window = None # View
+            callback=self.sound.audio_callback,
+        )
 
-        self.note_playback_timer = QTimer() # Presenter
-        self.note_playback_timer.setInterval(10) # Presenter
-        self.note_playback_timer.timeout.connect(self.check_note_playback) # Presenter
-        self.scheduled_notes = [] # Model
+        self.note_playback_timer = QTimer()
+        self.note_playback_timer.setInterval(10)
+        self.note_playback_timer.timeout.connect(self.check_note_playback)
+        self.scheduled_notes = []
 
-        self.record.clicked.connect(self.toggle_recording) # View
-        self.play.clicked.connect(self.toggle_playback) # View
-        self.connect_rewind_button() # View
-        self.connect_fastforward_button() # Presenter
+        self.record.clicked.connect(self.toggle_recording)
+        self.play.clicked.connect(self.toggle_playback)
+        self.connect_rewind_button()
+        self.connect_fastforward_button()
 
-        self.metronome_on = False # Presenter
-        self.metronome_timer = QTimer() # Presenter
-        self.metronome_timer.setInterval(int(60000 / self.bpm)) # Presenter
-        self.metronome_timer.timeout.connect(self.metronome_click) # Presenter
-        self.metronome.clicked.connect(self.toggle_metronome) # View
+        self.metronome_on = False
+        self.metronome_timer = QTimer()
+        self.metronome_timer.setInterval(int(60000 / self.bpm))
+        self.metronome_timer.timeout.connect(self.metronome_click)
+        self.metronome.clicked.connect(self.toggle_metronome)
 
-        self.update_timer = QTimer() # Presenter
-        self.update_timer.setInterval(50) # Presenter
-        self.update_timer.timeout.connect(self.update_active_notes) # Presenter
+        self.update_timer = QTimer()
+        self.update_timer.setInterval(50)
+        self.update_timer.timeout.connect(self.update_active_notes)
 
-        icons_dir = os.path.join(os.path.dirname(__file__), "Icons") # View
-        self.play_icon_path = os.path.join(icons_dir, "Play.png") # View
-        self.pause_icon_path = os.path.join(icons_dir, "Pause.png") # View
+        icons_dir = os.path.join(os.path.dirname(__file__), "Icons")
+        print("ICONS: " + icons_dir)
+        self.play_icon_path = os.path.join(icons_dir, "Play.png")
+        self.pause_icon_path = os.path.join(icons_dir, "Pause.png")
         self.set_button_icons()
 
-        self.autosave_file = "./Saves/autosave.muse" # Model
-        self.note_order = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] # Model
+        self.autosave_file = "./Saves/autosave.muse"
+        self.note_order = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
 
+        self.presenter = presenter
+        self.exit_to_menu = self.findChild(QAction, "back")
+        self.exit_to_menu.triggered.connect(self.exit_to_main_menu)
+        
+        # EXPORT FILE HANDLING 
+        self.exportMP3 = self.findChild(QAction, "exportMP3")
+        self.exportMP3.triggered.connect(self.export_as_mp3)
+        
+        self.instruments = {}
+        self.load_instrument_samples("Piano")
+
+    def keyPressEvent(self, event):
+        """Handle key presses, including Delete to remove selected track."""
+        if event.key() == Qt.Key.Key_Delete:
+            selected_items = self.track_scene.selectedItems()
+            if selected_items:
+                self.delete_selected_container(selected_items[0])
+        super().keyPressEvent(event) 
+    
+    def delete_selected_container(self, container):
+        """Remove the specified container from the scene and containers list."""
+        if container in self.containers:
+            self.track_scene.removeItem(container)
+            self.containers.remove(container)
+            self.autosave()
+            self.update_tracks_and_markers()   
+    
+    def mousePressEvent(self, event):
+        '''
+        Update selected container when clicking on one.
+        '''
+        item = self.trackView.itemAt(event.pos())
+        if isinstance(item, DraggableContainer):
+            self.selected_container = item
+            item.setPen(QPen(QColor(255, 0, 0), 2))
+            for container in self.containers:
+                if container != item:
+                    container.setPen(QPen(QColor(70, 130, 180, 200), 2))
+        super().mousePressEvent(event)
+        
+    def update_container_selection_feedback(self):
+        """Update visual feedback for selected containers."""
+        for container in self.containers:
+            if container.isSelected():
+                container.setPen(QPen(QColor(255, 0, 0), 2))
+            else:
+                container.setPen(QPen(QColor(70, 130, 180, 200), 2))
+                        
     def set_button_icons(self):
         '''
-        Updates play/pause button icon based on state (View)
+        Updates play/pause button icon based on state
         '''
         if self.playing and not self.paused:
             icon = QIcon(self.pause_icon_path)
@@ -154,26 +191,42 @@ class DAWTest(QMainWindow):
             icon = QIcon(self.play_icon_path)
         self.play.setIcon(icon)
 
+    def update_track_selection_feedback(self):
+        for track in self.track_rects:
+            if track.isSelected():
+                track.setBrush(QBrush(QColor(255, 45, 45, 100)))
+                track.setPen(QPen(QColor(255, 0, 0), 2))
+            else:
+                track.setBrush(QBrush(QColor(45, 45, 45)))
+                track.setPen(QPen(QColor(80, 80, 80)))
+                
     def update_tracks_and_markers(self):
         '''
-        Redrwas track backgrounds, measure lines, and labels (View)
+        Redraws track backgrounds, measure lines, and labels
         '''
         self.track_background_group = QGraphicsItemGroup()
         self.track_scene.addItem(self.track_background_group)
         view_width = max(self.trackView.width(), self.current_x + 2000)
         track_brush = QBrush(QColor(45, 45, 45))
         track_pen = QPen(QColor(80, 80, 80))
+        self.track_rects = []
         for i in range(5):
             track = QGraphicsRectItem(0, i * self.track_height, view_width, self.track_height)
             track.setBrush(track_brush)
             track.setPen(track_pen)
+            track.setData(0, i)
+            track.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable, True)
+            track.setAcceptHoverEvents(True)
             self.track_background_group.addToGroup(track)
+            self.track_rects.append(track)
+        
         measure_pen = QPen(QColor(100, 100, 100), 2, Qt.PenStyle.SolidLine)
         beat_tick_pen = QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DotLine)
         measures = int(view_width / self.measure_width) + 2
         for m in range(measures):
             x_pos = m * self.measure_width
-            self.track_background_group.addToGroup(self.track_scene.addLine(x_pos, 0, x_pos, 5 * self.track_height, measure_pen))
+            self.track_background_group.addToGroup(
+                self.track_scene.addLine(x_pos, 0, x_pos, 5 * self.track_height, measure_pen))
             for b in range(1, 4):
                 beat_x = x_pos + b * self.base_note_width
                 self.track_scene.addLine(beat_x, 0, beat_x, 5 * self.track_height, beat_tick_pen)
@@ -181,11 +234,13 @@ class DAWTest(QMainWindow):
             text.setPos(x_pos + 10, 5)
             text.setDefaultTextColor(QColor(150, 150, 150))
             self.track_background_group.addToGroup(text)
+        
         self.track_scene.setSceneRect(0, 0, view_width, 5 * self.track_height)
+        self.update_track_selection_feedback()
 
     def update_time_display(self):
         '''
-        Updates time-related UI elementes with current values (View)
+        Updates time-related UI elements with current values
         '''
         self.measure_edit.setText(f"Measure: {self.current_measure}:{self.current_beat}")
         self.tempo_edit.setText(f"Tempo: {self.bpm} BPM")
@@ -193,9 +248,7 @@ class DAWTest(QMainWindow):
 
     def resizeEvent(self, event):
         '''
-        Resizes track markers and notes windows based off window size (View)
-        
-        If someone expands the window or full screns it, the UI adjusts accordingly
+        Resizes track markers and notes windows based off window size
         '''
         super().resizeEvent(event)
         self.update_tracks_and_markers()
@@ -204,7 +257,7 @@ class DAWTest(QMainWindow):
 
     def toggle_recording(self):
         '''
-        Toggles recoridng state between start/stop (Presenter)
+        Toggles recording state between start/stop
         '''
         if self.recording:
             self.stop_recording()
@@ -213,7 +266,7 @@ class DAWTest(QMainWindow):
 
     def start_recording(self):
         '''
-        Begins a new recording with new container and timers (Presenter)
+        Begins a new recording with new container and timers
         '''
         self.recording = True
         self.recording_session = {
@@ -227,21 +280,37 @@ class DAWTest(QMainWindow):
         self.notes_window.finished.connect(self.stop_recording)
         self.notes_window.show()
         self.snap_notes_window()
-        
-        self.current_container = DraggableContainer(self.track_height, self.current_x, 0, 0, self.track_height)
+
+        # Determine selected track
+        selected_items = self.track_scene.selectedItems()
+        if selected_items and isinstance(selected_items[0], QGraphicsRectItem):
+            track_index = selected_items[0].data(0)
+            y_position = track_index * self.track_height
+            print(f"Recording on track {track_index}")
+        else:
+            track_index = 0
+            y_position = 0
+            print("No track selected, defaulting to track 0")
+
+        # Use playhead position for x
+        start_x = self.playhead.line().x1()
+        self.current_container = DraggableContainer(self.track_height, start_x, 0, 0, self.track_height)
+        self.current_container.setPos(start_x, y_position)
+        self.current_container.current_track = track_index
         self.current_container.setBrush(QBrush(QColor(173, 216, 230, 100)))
         self.current_container.setPen(QPen(QColor(70, 130, 180, 200), 2))
         self.track_scene.addItem(self.current_container)
         self.containers.append(self.current_container)
         self.update_timer.start()
-        self.playhead.setLine(0, 0, 0, 5 * self.track_height)
-        self.playhead.setVisible(True)
         self.playback_start_time = self.recording_session['start_time']
         self.playback_timer.start()
+        self.update_tracks_and_markers()
 
     def snap_notes_window(self):
+        print("snapping notes lol")
         '''
-        Positions (snaps) the notes window to the bottom of the DAW window (View)'''
+        Positions (snaps) the notes window to the bottom of the DAW window
+        '''
         if not self.notes_window:
             return
         daw_geometry = self.geometry()
@@ -255,17 +324,18 @@ class DAWTest(QMainWindow):
 
     def note_started(self, note_name):
         '''
-        Adds a new note to recording session with new container and timers (Presenter)
+        Adds a new note to recording session with new container and timers
         '''
         if self.recording and note_name not in self.recording_session['active_notes']:
             start_time = time.time()
             self.recording_session['active_notes'][note_name] = start_time
+            playhead_x = self.playhead.line().x1()
             time_per_beat = 60 / self.bpm
             start_beat = (start_time - self.recording_session['start_time']) / time_per_beat
-            x = start_beat * self.base_note_width
+            x = playhead_x + (start_beat * self.base_note_width)
             y = self.calculate_note_position(note_name)
             note = QGraphicsRectItem(0, 0, 0, self.note_height)
-            note.setPos(x, y)
+            note.setPos(x - self.current_container.x(), y)
             note.setBrush(QBrush(QColor(100, 149, 237)))
             note.setPen(QPen(Qt.GlobalColor.white))
             note.setParentItem(self.current_container)
@@ -273,16 +343,14 @@ class DAWTest(QMainWindow):
 
     def note_stopped(self, note_name):
         '''
-        Finalizes a note in the recording session, updates the UI, and records the duration (Presenter)
+        Finalizes a note in the recording session, updates the UI, and records the duration
         '''
         if self.recording and note_name in self.recording_session['active_notes']:
             start_time = self.recording_session['active_notes'].pop(note_name)
             stop_time = time.time()
             duration = stop_time - start_time
-            frequency = self.note_to_frequency(note_name)
             self.recording_session['notes'].append({
                 'timestamp': start_time - self.recording_session['start_time'],
-                'frequency': frequency,
                 'duration': duration,
                 'note_name': note_name
             })
@@ -294,7 +362,7 @@ class DAWTest(QMainWindow):
 
     def update_active_notes(self):
         '''
-        Updates the note rectangles within the container (solid boxes) during recording (Presenter)
+        Updates the note rectangles within the container (solid boxes) during recording
         '''
         if not self.recording or not self.current_container:
             return
@@ -311,13 +379,14 @@ class DAWTest(QMainWindow):
 
     def update_container_size(self):
         '''
-        Adjusts the size of note container (semi-transparent box) based on the notes (Presenter)
+        Adjusts the size of note container (semi-transparent box) based on the notes
         '''
         if not self.current_container or not self.recording_session['notes'] and not self.active_note_items:
             return
         max_end_beat = 0
         if self.recording_session['notes']:
-            max_end_beat = max(note['timestamp'] + note['duration'] for note in self.recording_session['notes']) * self.bpm / 60
+            max_end_beat = max(
+                note['timestamp'] + note['duration'] for note in self.recording_session['notes']) * self.bpm / 60
         for note_name, start_time in self.recording_session['active_notes'].items():
             current_time = time.time()
             duration_beats = (current_time - start_time) * self.bpm / 60
@@ -328,7 +397,7 @@ class DAWTest(QMainWindow):
 
     def stop_recording(self):
         '''
-        Ends recording, finalizes notes, and autosaves (Presenter)
+        Ends recording, finalizes notes, and autosaves
         '''
         if not self.recording:
             return
@@ -337,15 +406,12 @@ class DAWTest(QMainWindow):
         self.playback_timer.stop()
         if self.notes_window:
             self.notes_window.close()
-            self.notes_window = None
         current_time = time.time()
         for note_name in list(self.recording_session['active_notes'].keys()):
             start_time = self.recording_session['active_notes'].pop(note_name)
             duration = current_time - start_time
-            frequency = self.note_to_frequency(note_name)
             self.recording_session['notes'].append({
                 'timestamp': start_time - self.recording_session['start_time'],
-                'frequency': frequency,
                 'duration': duration,
                 'note_name': note_name
             })
@@ -354,17 +420,14 @@ class DAWTest(QMainWindow):
                 note.setRect(0, 0, (duration * self.bpm / 60) * self.base_note_width, self.note_height)
         self.update_container_size()
         if self.current_container:
-            self.current_x += self.current_container.rect().width()
             self.current_container.recording_session = self.recording_session
             self.current_container = None
         self.update_tracks_and_markers()
-        self.playhead.setLine(0, 0, 0, 5 * self.track_height)
-        self.playhead.setVisible(True)
         self.autosave()
 
     def note_to_frequency(self, note_name):
         '''
-        Converts note names and octave combo into frequency in Hz (Model)
+        Converts note names and octave combo into frequency in Hz
         '''
         note = note_name[:-1]
         octave = int(note_name[-1])
@@ -374,7 +437,7 @@ class DAWTest(QMainWindow):
 
     def autosave(self):
         '''
-        Saves all project data into .muse file (Model)
+        Saves all project data into .muse file
         '''
         project_data = {
             "tempo": self.bpm,
@@ -382,10 +445,11 @@ class DAWTest(QMainWindow):
             "containers": []
         }
         for container in self.containers:
-            notes = container.recording_session['notes'] if hasattr(container, 'recording_session') and container.recording_session else []
+            notes = container.recording_session['notes'] if hasattr(container,
+                                                                    'recording_session') and container.recording_session else []
             project_data["containers"].append({
                 "track": container.current_track,
-                "start_x": container.x(),  # Use current x() position or else we will get notes playing at the wrong time
+                "start_x": container.x(),
                 "notes": notes
             })
         with open(self.autosave_file, 'w') as f:
@@ -393,19 +457,20 @@ class DAWTest(QMainWindow):
 
     def save_project(self, filename):
         '''
-        Saves all project data into .muse file (Model)
-        
-        For now it is the same as autosave, but in the future will be used for MANUAL saving
+        Saves all project data into .muse file
         '''
         self.autosave()
+        
+        if self.presenter:
+            self.presenter.saved_projects_init()
 
     def load_project(self, filename):
         '''
-        Loads project data from .muse file and rebuilds the UI based off that data (Presenter)
+        Loads project data from .muse file and rebuilds the UI based off that data
         '''
         with open(filename, 'r') as f:
             project_data = json.load(f)
-        
+
         self.bpm = project_data["tempo"]
         self.time_signature = project_data["time_signature"]
         self.containers.clear()
@@ -414,7 +479,7 @@ class DAWTest(QMainWindow):
         self.playhead = self.track_scene.addLine(0, 0, 0, 5 * self.track_height, QPen(Qt.GlobalColor.red, 2))
         self.playhead.setZValue(10)
         self.playhead.setVisible(True)
-        
+
         for container_data in project_data["containers"]:
             container = DraggableContainer(self.track_height, 0, 0, 0, self.track_height)
             container.setBrush(QBrush(QColor(173, 216, 230, 100)))
@@ -422,7 +487,7 @@ class DAWTest(QMainWindow):
             container.setPos(container_data["start_x"], container_data["track"] * self.track_height)
             container.current_track = container_data["track"]
             container.recording_session = {"notes": container_data["notes"]}
-            
+
             max_width = 0
             for note_data in container_data["notes"]:
                 start_x = note_data["timestamp"] * self.bpm / 60 * self.base_note_width
@@ -437,17 +502,13 @@ class DAWTest(QMainWindow):
             container.setRect(0, 0, max_width, self.track_height)
             self.track_scene.addItem(container)
             self.containers.append(container)
-        
+
         self.current_x = max([c.x() + c.rect().width() for c in self.containers], default=0)
         self.update_time_display()
 
     def calculate_note_position(self, note_name):
         '''
-        Calculates y-position for a note on the track - WITHIN the container (View)
-        
-        C4 solid note box should be towards the bottom of the container, B4 should be towards the top
-        
-        This method calculates this position.  
+        Calculates y-position for a note on the track - WITHIN the container
         '''
         note = note_name[:-1]
         octave = int(note_name[-1])
@@ -459,10 +520,9 @@ class DAWTest(QMainWindow):
 
     def toggle_playback(self):
         '''
-        Togles between play, pause and stop states (Presenter)
+        Toggles between play, pause and stop states
         '''
         if self.paused:
-            # TOGGLE PLAY
             self.paused = False
             self.playback_start_time = time.time() - (self.paused_position / (self.base_note_width * self.bpm / 60))
             self.playhead.setLine(self.paused_position, 0, self.paused_position, 5 * self.track_height)
@@ -472,7 +532,6 @@ class DAWTest(QMainWindow):
             self.note_playback_timer.start()
             self.playback_stream.start()
         elif self.playing:
-            # TOGGLE PAUSE
             self.paused = True
             self.paused_position = self.playhead.line().x1()
             self.playback_timer.stop()
@@ -481,7 +540,6 @@ class DAWTest(QMainWindow):
             self.active_playback_notes.clear()
             self.scheduled_notes.clear()
         else:
-            # TOGGLE STOP
             self.playing = True
             self.paused = False
             self.paused_position = None
@@ -500,7 +558,7 @@ class DAWTest(QMainWindow):
 
     def start_audio_playback(self):
         '''
-        Initializes audio playback via note scheduler (Model)
+        Initializes audio playback via note scheduler
         '''
         self.active_playback_notes.clear()
         self.scheduled_notes.clear()
@@ -508,23 +566,22 @@ class DAWTest(QMainWindow):
         for container in self.containers:
             if not hasattr(container, 'recording_session') or not container.recording_session['notes']:
                 continue
-            # Calculate time offset based on current container position
             container_x_time = container.x() / pixels_per_second
             for note in container.recording_session['notes']:
                 adjusted_start_time = note['timestamp'] + container_x_time
                 elapsed = time.time() - self.playback_start_time
                 if adjusted_start_time <= elapsed <= adjusted_start_time + note['duration']:
-                    self.active_playback_notes[note['frequency']] = True
+                    self.active_playback_notes[note['note_name']] = True
                 elif adjusted_start_time > elapsed:
                     self.scheduled_notes.append({
-                        'frequency': note['frequency'],
+                        'name': note['note_name'],
                         'start_time': adjusted_start_time,
                         'duration': note['duration']
                     })
 
     def check_note_playback(self):
         '''
-        Checks and triggers the scheduled notes during playback (Presenter)
+        Checks and triggers the scheduled notes during playback
         '''
         if not self.playing or self.paused:
             return
@@ -533,62 +590,66 @@ class DAWTest(QMainWindow):
         for i, note in enumerate(self.scheduled_notes):
             start_time = note['start_time']
             end_time = start_time + note['duration']
-            freq = note['frequency']
+            name = note['name']
             if start_time <= current_time < end_time:
-                if freq not in self.active_playback_notes:
-                    self.note_on(freq)
+                if name not in self.active_playback_notes:
+                    self.sound.note_on(name)
             elif current_time >= end_time:
-                self.note_off(freq)
+                self.sound.note_off(name)
                 notes_to_remove.append(i)
-        
+
         for i in sorted(notes_to_remove, reverse=True):
             self.scheduled_notes.pop(i)
 
-    def note_on(self, frequency):
+    def note_on(self, note):
         '''
-        Plays a note for audio playback (Model)
+        Plays a note for audio playback
         '''
-        self.active_playback_notes[frequency] = True
-        if frequency not in self.phase:
-            self.phase[frequency] = 0
+        self.notes_window.sound.note_on(note)
 
-    def note_off(self, frequency):
+    def note_off(self, note):
         '''
-        Stops a note for audio playback (Model)
+        Stops a note for audio playback
         '''
-        if frequency in self.active_playback_notes:
-            del self.active_playback_notes[frequency]
-        if frequency in self.phase:
-            del self.phase[frequency]
+        self.notes_window.sound.note_off(note)
 
     def playback_audio_callback(self, outdata, frames, time_info, status):
         '''
-        Generates audio for active notes (Model)
+        Generates audio for active notes
         '''
-        outdata.fill(0)
-        t = np.arange(frames) / self.sample_rate
-        for freq in list(self.active_playback_notes.keys()):
-            if freq not in self.phase:
-                self.phase[freq] = 0
-            samples = 0.3 * np.sin(2 * np.pi * freq * t + self.phase[freq])
-            outdata[:, 0] += samples
-            self.phase[freq] += 2 * np.pi * freq * frames / self.sample_rate
-            self.phase[freq] %= 2 * np.pi
+        self.notes_window.sound.audio_callback(outdata, frames, time_info, status)
+
+    def get_project_end(self):
+        '''
+        Calculate the total length of the project in pixels.
+        '''
+        if not self.containers:
+            return 0
+        max_end = 0
+        pixels_per_second = self.base_note_width * self.bpm / 60
+        for container in self.containers:
+            if hasattr(container, 'recording_session') and container.recording_session['notes']:
+                container_start_time = container.x() / pixels_per_second
+                for note in container.recording_session['notes']:
+                    end_time = (container_start_time + note['timestamp'] + note['duration']) * pixels_per_second
+                    max_end = max(max_end, end_time)
+        return max_end
 
     def update_playhead_continuous(self):
         '''
-        Moves playhead and updates time display during playback (Presenter)
-        
-        Also handles stopping playback if it reaches the end of the track
+        Moves playhead and updates time display during playback
         '''
         if self.playback_start_time is None or self.paused:
             return
         elapsed_time = time.time() - self.playback_start_time
         pixels_per_second = self.base_note_width * self.bpm / 60
         x_position = elapsed_time * pixels_per_second
-        if x_position >= 2000:
+        project_end = self.get_project_end()
+        
+        if x_position >= project_end:
             self.stop_playback_internal()
             return
+        
         self.playhead.setLine(x_position, 0, x_position, 5 * self.track_height)
         self.playhead.setVisible(True)
         beat_position = x_position / self.base_note_width
@@ -601,7 +662,7 @@ class DAWTest(QMainWindow):
 
     def stop_playback_internal(self):
         '''
-        Completely stops playback and moves playhead to start (Presenter)
+        Completely stops playback and moves playhead to start
         '''
         self.playing = False
         self.paused = False
@@ -617,13 +678,13 @@ class DAWTest(QMainWindow):
 
     def connect_rewind_button(self):
         '''
-        Connects rewind button to its function (View)
+        Connects rewind button to its function
         '''
         self.rewind.clicked.connect(self.rewind_one_measure)
 
     def rewind_one_measure(self):
         '''
-        Rewinds playhead one measure (4 beats) (Presenter)
+        Rewinds playhead one measure (4 beats)
         '''
         if self.playhead is None:
             return
@@ -645,13 +706,13 @@ class DAWTest(QMainWindow):
 
     def connect_fastforward_button(self):
         '''
-        Connects fast forward button to its function (View)
+        Connects fast forward button to its function
         '''
         self.fastForward.clicked.connect(self.fastforward_one_measure)
 
     def fastforward_one_measure(self):
         '''
-        Fast forwards playhead one measure (4 beats) (Presenter)
+        Fast forwards playhead one measure (4 beats)
         '''
         if self.playhead is None:
             return
@@ -676,7 +737,7 @@ class DAWTest(QMainWindow):
 
     def toggle_metronome(self):
         '''
-        Toggles metronome on/off (Presenter)
+        Toggles metronome on/off
         '''
         if self.metronome_on:
             self.metronome_on = False
@@ -691,7 +752,7 @@ class DAWTest(QMainWindow):
 
     def align_metronome_to_playhead(self):
         '''
-        Syncs metronome timer to playhead position (Presenter)
+        Syncs metronome timer to playhead position
         '''
         if self.playhead and (self.playing or self.paused):
             current_x = self.playhead.line().x1()
@@ -702,10 +763,10 @@ class DAWTest(QMainWindow):
 
     def metronome_click(self):
         '''
-        Handles metronome beat, click sound and updates time (Presenter)
+        Handles metronome beat, click sound and updates time
         '''
         print("Click - Beat at BPM:", self.bpm)
-        
+
         click_sample = np.sin(2 * np.pi * 1000 * np.arange(1000) / 44100) * 0.5
         sd.play(click_sample, samplerate=44100)
         if self.playing or self.paused:
@@ -717,7 +778,7 @@ class DAWTest(QMainWindow):
 
     def update_tempo(self):
         '''
-        Updates BPM of DAW as well as metronome timer/display (Presenter)
+        Updates BPM of DAW as well as metronome timer/display
         '''
         text = self.tempo_edit.text()
         try:
@@ -737,7 +798,7 @@ class DAWTest(QMainWindow):
 
     def update_time(self):
         '''
-        Updates time signature from user input (Presenter)
+        Updates time signature from user input
         '''
         text = self.time_edit.text()
         try:
@@ -756,7 +817,7 @@ class DAWTest(QMainWindow):
 
     def update_measure(self):
         '''
-        Updates measure and beat from user input (Presenter)
+        Updates measure and beat from user input
         '''
         text = self.measure_edit.text()
         try:
@@ -776,16 +837,162 @@ class DAWTest(QMainWindow):
 
     def closeEvent(self, event):
         '''
-        Autosaves, cleans and closes the DAW (Presenter)
+        Autosaves, cleans and closes the DAW
         '''
         self.autosave()
         self.playback_stream.stop()
         self.note_playback_timer.stop()
         event.accept()
+    
+    def export_as_mp3(self, output_path=None):
+        """
+        Export the current project as an MP3 file using preloaded .aiff piano samples.
+        """
+        try:
+            if not output_path:
+                output_path, _ = QFileDialog.getSaveFileName(
+                    self, "Save MP3 File", "", "MP3 Files (*.mp3)"
+                )
+                if not output_path:
+                    QMessageBox.warning(self, "Export Failed", "No output file selected.")
+                    return
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = DAWTest()
-    window.show()
-    #window.load_project("autosave.muse")       # TESTING LOADING PROJECTS
-    sys.exit(app.exec())
+            total_duration = 0
+            pixels_per_second = self.base_note_width * self.bpm / 60
+            for container in self.containers:
+                if hasattr(container, 'recording_session') and container.recording_session['notes']:
+                    container_start_time = container.x() / pixels_per_second
+                    for note in container.recording_session['notes']:
+                        end_time = container_start_time + note['timestamp'] + note['duration']
+                        total_duration = max(total_duration, end_time)
+            print(f"Calculated total duration: {total_duration} seconds")
+
+            if total_duration <= 0:
+                QMessageBox.warning(self, "Export Failed", "No audio data to export.")
+                return
+
+            sample_rate = self.sample_rate
+            num_samples = int(total_duration * sample_rate)
+            audio_data = np.zeros(num_samples, dtype=np.float32)
+            print(f"Initializing audio_data with {num_samples} samples")
+
+            instrument = "Piano"
+            if instrument not in self.instruments:
+                raise ValueError(f"Instrument {instrument} not found in self.instruments")
+
+            for container in self.containers:
+                if hasattr(container, 'recording_session') and container.recording_session['notes']:
+                    container_start_time = container.x() / pixels_per_second
+                    print(f"Processing container at x={container.x()}, start_time={container_start_time} seconds")
+                    for note in container.recording_session['notes']:
+                        adjusted_timestamp = container_start_time + note['timestamp']
+                        start_sample = int(adjusted_timestamp * sample_rate)
+                        duration_samples = int(note['duration'] * sample_rate)
+                        note_name = note['note_name']
+                        print(f"Processing note: {note_name}, start_sample: {start_sample}, duration_samples: {duration_samples}")
+
+                        if note_name in self.instruments[instrument]:
+                            sample_data = self.instruments[instrument][note_name]['data']
+                            sample_rate_sample = self.instruments[instrument][note_name]['sample_rate']
+                            print(f"Loaded sample for {note_name}, length: {len(sample_data)}, sample_rate: {sample_rate_sample}")
+
+                            if sample_rate_sample != sample_rate:
+                                from scipy import signal
+                                sample_data = signal.resample(sample_data, int(len(sample_data) * sample_rate / sample_rate_sample))
+                                print(f"Resampled {note_name} to {len(sample_data)} samples")
+
+                            if len(sample_data) < duration_samples:
+                                num_loops = (duration_samples + len(sample_data) - 1) // len(sample_data)
+                                sample_data = np.tile(sample_data, num_loops)[:duration_samples]
+                                print(f"Looped {note_name} {num_loops} times to match duration")
+                            elif len(sample_data) > duration_samples:
+                                sample_data = sample_data[:duration_samples]
+                                print(f"Trimmed {note_name} to match duration")
+
+                            samples = sample_data * 0.5
+                            end_sample = start_sample + duration_samples
+                            if end_sample <= len(audio_data):
+                                audio_data[start_sample:end_sample] += samples
+                                print(f"Mixed {note_name} into audio_data[{start_sample}:{end_sample}]")
+                            else:
+                                excess = end_sample - len(audio_data)
+                                audio_data[start_sample:] += samples[:-excess]
+                                print(f"Trimmed and mixed {note_name} due to length mismatch, excess: {excess}")
+                        else:
+                            print(f"Warning: Sample for {note_name} not found in {instrument}")
+
+            max_amplitude = np.max(np.abs(audio_data))
+            if max_amplitude > 0:
+                audio_data = audio_data / max_amplitude
+                print(f"Normalized audio, max amplitude: {max_amplitude}")
+            else:
+                print("Warning: Audio data is silent (max amplitude = 0)")
+
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
+                wav_path = temp_wav.name
+                sf.write(wav_path, audio_data, sample_rate, format='WAV')
+                print(f"Saved temporary WAV file: {wav_path}")
+
+            mp3_path = output_path
+            ffmpeg_cmd = [
+                'ffmpeg', '-i', wav_path, '-c:a', 'libmp3lame', '-q:a', '2',
+                '-y', mp3_path
+            ]
+            result = subprocess.run(ffmpeg_cmd, check=True, capture_output=True, text=True)
+            print(f"FFmpeg output: {result.stdout}")
+            print(f"FFmpeg errors (if any): {result.stderr}")
+
+            os.unlink(wav_path)
+
+            QMessageBox.information(self, "Export Successful", f"Exported to: {mp3_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", f"Error exporting MP3: {str(e)}")
+            print(f"Export error details: {str(e)}")
+    
+    def load_instrument_samples(self, instrument_name):
+        """
+        Load .aiff samples for the specified instrument into self.instruments.
+        """
+        instrument_dir = os.path.join(project_root, "Instruments", instrument_name)
+        if not os.path.exists(instrument_dir):
+            return
+        self.instruments[instrument_name] = {}
+        
+        for file in os.listdir(instrument_dir):
+            if file.endswith('.aiff'):
+                note_name = os.path.splitext(file)[0]
+                file_path = os.path.join(instrument_dir, file)
+                try:
+                    data, sample_rate = sf.read(file_path)
+                    if data.ndim > 1:
+                        data = np.mean(data, axis=1)
+                    
+                    end_frame = int(2 * sample_rate)
+                    max_idx = np.argmax(abs(data))
+                    start_frame = 0
+                    for x in range(max_idx - 1, -1, -1):
+                        if abs(data[x]) < 0.0010:
+                            start_frame = x
+                            break
+                    if end_frame > len(data):
+                        end_frame = len(data)
+                    snippet = data[start_frame:end_frame]
+                    
+                    self.instruments[instrument_name][note_name] = {
+                        'data': snippet,
+                        'sample_rate': sample_rate
+                    }
+                except sf.SoundFileError as e:
+                    print(f"Error loading {file_path}: {str(e)}")
+                   
+    def exit_to_main_menu(self):
+        """
+        Closes the DAW UI and opens the Main Menu UI by notifying the Presenter.
+        """
+        if self.presenter:
+            self.presenter.on_exit_to_menu_requested()
+        else:
+            self.close()
+            from .main_menu import Main_Menu
+            main_menu = Main_Menu()
+            main_menu.show()
