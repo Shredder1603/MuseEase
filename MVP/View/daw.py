@@ -1,4 +1,3 @@
-# MVP/View/daw.py
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QLineEdit, QHBoxLayout, QMessageBox, QFileDialog, QGraphicsScene,
                              QGraphicsRectItem, QGraphicsItemGroup)
 from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction
@@ -282,35 +281,65 @@ class DAW(QMainWindow, QWidget):
             'active_notes': {},
             'notes': []
         }
-        self.notes_window = NotesWindow(sound_generator=self.sound)
-        self.notes_window.note_started.connect(self.note_started)
-        self.notes_window.note_stopped.connect(self.note_stopped)
-        self.notes_window.finished.connect(self.stop_recording)
+        if self.notes_window is None:
+            self.notes_window = NotesWindow(sound_generator=self.sound)
+            self.notes_window.note_started.connect(self.note_started)
+            self.notes_window.note_stopped.connect(self.note_stopped)
+            self.notes_window.finished.connect(self.stop_recording)
         self.notes_window.show()
+        self.notes_window.activateWindow()
+        self.notes_window.setFocus()
         self.snap_notes_window()
 
         # Determine selected track
         selected_items = self.track_scene.selectedItems()
-        if selected_items and isinstance(selected_items[0], QGraphicsRectItem):
-            track_index = selected_items[0].data(0)
-            y_position = track_index * self.track_height
-            print(f"Recording on track {track_index}")
+        track_index = 0  # Default value
+        y_position = 0
+        if selected_items:
+            selected_item = selected_items[0]
+            # Check if the selected item is one of the track rectangles
+            if selected_item in self.track_rects and isinstance(selected_item, QGraphicsRectItem):
+                track_index = selected_item.data(0)
+                if track_index is not None:  # Additional safety check
+                    y_position = track_index * self.track_height
+                    print(f"Recording on track {track_index}, y_position={y_position}")
+                else:
+                    print("Selected track has no index data, defaulting to track 0")
+            else:
+                print(f"Selected item is not a track rectangle (type: {type(selected_item)}), defaulting to track 0")
         else:
-            track_index = 0
-            y_position = 0
             print("No track selected, defaulting to track 0")
 
-        # Use playhead position for x
-        start_x = self.playhead.line().x1()
+        # Reset playhead and playback state
+        self.playback_timer.stop()  # Stop any ongoing playback
+        self.playhead.setLine(0, 0, 0, 5 * self.track_height)  # Reset playhead to start
+        self.playback_start_time = self.recording_session['start_time']  # Reset playback start time
+
+        # Calculate start_x based on existing containers on this track
+        start_x = 0
+        for container in self.containers:
+            if container.current_track == track_index:
+                container_end_x = container.x() + container.rect().width()
+                start_x = max(start_x, container_end_x)
+        print(f"Calculated start_x={start_x} for track {track_index}")
+
+        # Use playhead position for x, but ensure it's at least start_x
+        playhead_x = self.playhead.line().x1()
+        start_x = max(start_x, playhead_x)
+        print(f"Creating container at start_x={start_x}, y_position={y_position}")
+
         self.current_container = DraggableContainer(self.track_height, start_x, 0, 0, self.track_height)
+        self.current_container.setRect(0, 0, 50, self.track_height)  # Minimum width
         self.current_container.setPos(start_x, y_position)
         self.current_container.current_track = track_index
         self.current_container.setBrush(QBrush(QColor(173, 216, 230, 100)))
         self.current_container.setPen(QPen(QColor(70, 130, 180, 200), 2))
+        self.current_container.setZValue(5)
         self.track_scene.addItem(self.current_container)
         self.containers.append(self.current_container)
+        print(f"Container added to scene, total containers: {len(self.containers)}")
+        self.trackView.ensureVisible(self.current_container)
         self.update_timer.start()
-        self.playback_start_time = self.recording_session['start_time']
         self.playback_timer.start()
         self.update_tracks_and_markers()
 
@@ -334,20 +363,24 @@ class DAW(QMainWindow, QWidget):
         '''
         Adds a new note to recording session with new container and timers
         '''
+        print(f"note_started called for note: {note_name}")
         if self.recording and note_name not in self.recording_session['active_notes']:
             start_time = time.time()
             self.recording_session['active_notes'][note_name] = start_time
-            playhead_x = self.playhead.line().x1()
             time_per_beat = 60 / self.bpm
-            start_beat = (start_time - self.recording_session['start_time']) / time_per_beat
-            x = playhead_x + (start_beat * self.base_note_width)
+            start_beat = max(0, (start_time - self.recording_session['start_time']) / time_per_beat)  # Clamp to 0
+            x = start_beat * self.base_note_width  # Position based solely on timing
             y = self.calculate_note_position(note_name)
+            note_x_relative = x
+            print(f"Adding note at x={x}, relative_x={note_x_relative}, y={y}, container x={self.current_container.x()}")
             note = QGraphicsRectItem(0, 0, 0, self.note_height)
-            note.setPos(x - self.current_container.x(), y)
+            note.setPos(note_x_relative, y)
             note.setBrush(QBrush(QColor(100, 149, 237)))
             note.setPen(QPen(Qt.GlobalColor.white))
+            note.setZValue(6)
             note.setParentItem(self.current_container)
             self.active_note_items[note_name] = note
+            self.track_scene.update()
 
     def note_stopped(self, note_name):
         '''
@@ -391,17 +424,48 @@ class DAW(QMainWindow, QWidget):
         '''
         if not self.current_container or not self.recording_session['notes'] and not self.active_note_items:
             return
-        max_end_beat = 0
+
+        # Calculate min and max x-positions of notes (relative to container)
+        min_x = 0
+        max_x = 0
+        time_per_beat = 60 / self.bpm
+
+        # For completed notes
         if self.recording_session['notes']:
-            max_end_beat = max(
-                note['timestamp'] + note['duration'] for note in self.recording_session['notes']) * self.bpm / 60
+            for note in self.recording_session['notes']:
+                start_beat = note['timestamp'] * self.bpm / 60
+                end_beat = (note['timestamp'] + note['duration']) * self.bpm / 60
+                start_x = start_beat * self.base_note_width
+                end_x = end_beat * self.base_note_width
+                min_x = min(min_x, start_x)
+                max_x = max(max_x, end_x)
+
+        # For active notes
         for note_name, start_time in self.recording_session['active_notes'].items():
             current_time = time.time()
+            start_beat = (start_time - self.recording_session['start_time']) * self.bpm / 60
             duration_beats = (current_time - start_time) * self.bpm / 60
-            end_beat = (start_time - self.recording_session['start_time']) * self.bpm / 60 + duration_beats
-            max_end_beat = max(max_end_beat, end_beat)
-        session_width = max_end_beat * self.base_note_width
-        self.current_container.setRect(0, 0, session_width, self.track_height)
+            start_x = start_beat * self.base_note_width
+            end_x = (start_beat + duration_beats) * self.base_note_width
+            min_x = min(min_x, start_x)
+            max_x = max(max_x, end_x)
+
+        # Adjust container position and size
+        if min_x < 0:
+            # Shift the container left to include notes with negative x-positions
+            current_pos = self.current_container.pos()
+            self.current_container.setPos(current_pos.x() + min_x, current_pos.y())
+            # Adjust the notes' positions to compensate for the container's shift
+            for note in self.current_container.childItems():
+                note_pos = note.pos()
+                note.setPos(note_pos.x() - min_x, note_pos.y())
+            # Update the min_x to 0 since we've shifted the container
+            max_x -= min_x  # Adjust max_x to account for the shift
+            min_x = 0
+
+        # Set the container's width to encompass all notes
+        session_width = max_x - min_x
+        self.current_container.setRect(0, 0, max(session_width, 50), self.track_height)  # Ensure minimum width
 
     def stop_recording(self):
         '''
@@ -413,7 +477,7 @@ class DAW(QMainWindow, QWidget):
         self.update_timer.stop()
         self.playback_timer.stop()
         if self.notes_window:
-            self.notes_window.close()
+            self.notes_window.hide()
         current_time = time.time()
         for note_name in list(self.recording_session['active_notes'].keys()):
             start_time = self.recording_session['active_notes'].pop(note_name)
@@ -430,6 +494,7 @@ class DAW(QMainWindow, QWidget):
         if self.current_container:
             self.current_container.recording_session = self.recording_session
             self.current_container = None
+        print("Recording stopped, current_container reset to None")
         self.update_tracks_and_markers()
         self.autosave()
 
@@ -492,11 +557,12 @@ class DAW(QMainWindow, QWidget):
             container = DraggableContainer(self.track_height, 0, 0, 0, self.track_height)
             container.setBrush(QBrush(QColor(173, 216, 230, 100)))
             container.setPen(QPen(QColor(70, 130, 180, 200), 2))
+            container.setZValue(5)
             container.setPos(container_data["start_x"], container_data["track"] * self.track_height)
             container.current_track = container_data["track"]
             container.recording_session = {"notes": container_data["notes"]}
 
-            max_width = 0
+            max_x = 0
             for note_data in container_data["notes"]:
                 start_x = note_data["timestamp"] * self.bpm / 60 * self.base_note_width
                 width = note_data["duration"] * self.bpm / 60 * self.base_note_width
@@ -505,9 +571,10 @@ class DAW(QMainWindow, QWidget):
                 note.setPos(start_x, y)
                 note.setBrush(QBrush(QColor(100, 149, 237)))
                 note.setPen(QPen(Qt.GlobalColor.white))
+                note.setZValue(6)
                 note.setParentItem(container)
-                max_width = max(max_width, start_x + width)
-            container.setRect(0, 0, max_width, self.track_height)
+                max_x = max(max_x, start_x + width)
+            container.setRect(0, 0, max(max_x, 50), self.track_height)
             self.track_scene.addItem(container)
             self.containers.append(container)
 
@@ -882,6 +949,7 @@ class DAW(QMainWindow, QWidget):
             sample_rate = self.sample_rate
             num_samples = int(total_duration * sample_rate)
             audio_data = np.zeros(num_samples, dtype=np.float32)
+
             print(f"Initializing audio_data with {num_samples} samples")
 
             instrument = "Piano"
