@@ -96,8 +96,10 @@ class DAW(QMainWindow, QWidget):
         self.sample_rate = 44100
         self.active_playback_notes = {}
         self.phase = {}
-        self.notes_window = NotesWindow()
-        self.sound = SoundGenerator()
+        self.notes_window = None  # Initialized later in start_recording
+        self.preloaded_samples = {}  # Store preloaded samples
+        self.load_instrument_samples("Piano")  # Preload samples at startup
+        self.sound = SoundGenerator(preloaded_samples=self.preloaded_samples)  # Use preloaded samples
         self.playback_stream = sd.OutputStream(
             samplerate=self.sample_rate,
             channels=1,
@@ -280,7 +282,7 @@ class DAW(QMainWindow, QWidget):
             'active_notes': {},
             'notes': []
         }
-        self.notes_window = NotesWindow()
+        self.notes_window = NotesWindow(sound_generator=self.sound)
         self.notes_window.note_started.connect(self.note_started)
         self.notes_window.note_stopped.connect(self.note_stopped)
         self.notes_window.finished.connect(self.stop_recording)
