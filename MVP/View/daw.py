@@ -17,6 +17,47 @@ import os
 
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
+class CustomGraphicsScene(QGraphicsScene):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.daw = None  # Reference to the DAW instance
+
+    def set_daw(self, daw):
+        self.daw = daw
+
+    def mousePressEvent(self, event):
+        # Map the click position to scene coordinates
+        pos = event.scenePos()
+        x_pos = pos.x()
+        y_pos = pos.y()
+        print(f"Click at scene coordinates: x={x_pos}, y={y_pos}")
+
+        # Check if a DraggableContainer was clicked
+        items = self.items(pos)
+        for item in items:
+            if isinstance(item, DraggableContainer):
+                print(f"Container clicked at track {item.current_track}, ignoring playhead movement")
+                super().mousePressEvent(event)  # Let the scene handle the event (e.g., for dragging)
+                return
+
+        # Move the playhead to the exact clicked x-position (no snapping)
+        if self.daw:
+            self.daw.playhead.setLine(x_pos, 0, x_pos, 5 * self.daw.track_height)
+            print(f"Moved playhead to x={x_pos}")
+            # Update the playback start time to match the new playhead position
+            pixels_per_second = self.daw.base_note_width * self.daw.bpm / 60
+            elapsed_time = x_pos / pixels_per_second
+            self.daw.playback_start_time = time.perf_counter() - elapsed_time
+            # Update the measure and beat display
+            beat_position = x_pos / self.daw.base_note_width
+            self.daw.current_measure = int(beat_position // 4) + 1
+            self.daw.current_beat = int(beat_position % 4) + 1
+            self.daw.update_time_display()
+            self.daw.trackView.ensureVisible(QRectF(x_pos, 0, 10, self.daw.track_height))
+
+        # Let the scene handle the event for track selection
+        super().mousePressEvent(event)
+
 class DAW(QMainWindow, QWidget):
     def __init__(self, presenter=None):
         super().__init__()
@@ -35,13 +76,18 @@ class DAW(QMainWindow, QWidget):
         self.time_signature = "4/4"
         self.current_measure = 1
         self.current_beat = 1
+        self.selected_track_index = 0  # Store the currently selected track index
 
-        self.track_scene = QGraphicsScene()
+        # Use the custom scene
+        self.track_scene = CustomGraphicsScene()
+        self.track_scene.set_daw(self)  # Set the DAW reference
         self.trackView.setScene(self.track_scene)
         self.trackView.setInteractive(True)
         self.trackView.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         self.trackView.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.track_scene.selectionChanged.connect(self.update_track_selection_feedback)
+        self.trackView.setMinimumHeight(5 * self.track_height + 50)  # Ensure all tracks are visible
+        self.trackView.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         self.containers = []
         
@@ -75,6 +121,13 @@ class DAW(QMainWindow, QWidget):
         self.track_background_group = QGraphicsItemGroup()
         self.track_scene.addItem(self.track_background_group)
         self.update_tracks_and_markers()
+        if self.track_rects:  # Check if track_rects is populated
+            self.selected_track_index = 0
+            self.track_rects[0].setSelected(True)  # Visually select the first track by default
+            print(f"Default selected track {self.selected_track_index}")
+            self.update_track_selection_feedback()
+        else:
+            print("Warning: track_rects not initialized before setting default selection")
         self.update_time_display()
 
         self.recording = False
@@ -82,7 +135,7 @@ class DAW(QMainWindow, QWidget):
         self.playing = False
         self.paused = False
         self.playback_timer = QTimer()
-        self.playback_timer.setInterval(10)
+        self.playback_timer.setInterval(5)  # Reduced for smoother playhead movement
         self.playback_timer.timeout.connect(self.update_playhead_continuous)
         self.playhead = self.track_scene.addLine(0, 0, 0, 5 * self.track_height, QPen(Qt.GlobalColor.red, 2))
         self.playhead.setZValue(10)
@@ -164,30 +217,7 @@ class DAW(QMainWindow, QWidget):
             self.containers.remove(container)
             self.autosave()
             self.update_tracks_and_markers()   
-    
-    def mousePressEvent(self, event):
-        '''
-        Update selected container when clicking on one.
-        '''
-        item = self.trackView.itemAt(event.pos())
-        if isinstance(item, DraggableContainer):
-            self.selected_container = item
-            item.setPen(QPen(QColor(255, 0, 0), 2))
-            for container in self.containers:
-                if container != item:
-                    container.setPen(QPen(QColor(70, 130, 180, 200), 2))
-        super().mousePressEvent(event)
         
-    def update_container_selection_feedback(self):
-        '''
-        Update visual feedback for selected containers.
-        '''
-        for container in self.containers:
-            if container.isSelected():
-                container.setPen(QPen(QColor(255, 0, 0), 2))
-            else:
-                container.setPen(QPen(QColor(70, 130, 180, 200), 2))
-                        
     def set_button_icons(self):
         '''
         Updates play/pause button icon based on state
@@ -199,34 +229,48 @@ class DAW(QMainWindow, QWidget):
         self.play.setIcon(icon)
 
     def update_track_selection_feedback(self):
+        '''
+        Update visual feedback for selected tracks and update selected_track_index.
+        '''
+        selected_items = self.track_scene.selectedItems()
         for track in self.track_rects:
-            if track.isSelected():
-                track.setBrush(QBrush(QColor(255, 45, 45, 100)))
-                track.setPen(QPen(QColor(255, 0, 0), 2))
+            if track in selected_items:
+                track.setBrush(QBrush(QColor(45, 45, 45)))  # Keep default background
+                track.setPen(QPen(QColor(255, 255, 0), 2))  # Yellow border
+                self.selected_track_index = track.data(0) - 1
+                print(f"Selected track {self.selected_track_index} (data: {track.data(0)})")
             else:
                 track.setBrush(QBrush(QColor(45, 45, 45)))
                 track.setPen(QPen(QColor(80, 80, 80)))
+        if not selected_items:
+            print("No track selected, preserving previous selected_track_index")
                 
     def update_tracks_and_markers(self):
         '''
         Redraws track backgrounds, measure lines, and labels
         '''
+        # Clear existing track background group if it exists
+        if self.track_background_group is not None:
+            self.track_scene.removeItem(self.track_background_group)
         self.track_background_group = QGraphicsItemGroup()
         self.track_scene.addItem(self.track_background_group)
         view_width = max(self.trackView.width(), self.current_x + 2000)
         track_brush = QBrush(QColor(45, 45, 45))
         track_pen = QPen(QColor(80, 80, 80))
         self.track_rects = []
+        
+        # Add tracks as top-level items (not in the group)
         for i in range(5):
             track = QGraphicsRectItem(0, i * self.track_height, view_width, self.track_height)
             track.setBrush(track_brush)
             track.setPen(track_pen)
-            track.setData(0, i)
+            track.setData(0, i + 1)  # Set data to 1, 2, 3, 4, 5
             track.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable, True)
             track.setAcceptHoverEvents(True)
-            self.track_background_group.addToGroup(track)
+            self.track_scene.addItem(track)  # Add directly to scene, not group
             self.track_rects.append(track)
         
+        # Add measure lines and labels to the group
         measure_pen = QPen(QColor(100, 100, 100), 2, Qt.PenStyle.SolidLine)
         beat_tick_pen = QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DotLine)
         measures = int(view_width / self.measure_width) + 2
@@ -269,6 +313,12 @@ class DAW(QMainWindow, QWidget):
         if self.recording:
             self.stop_recording()
         else:
+            # Check if a track is selected
+            selected_items = self.track_scene.selectedItems()
+            print(f"Before recording: selected_track_index={self.selected_track_index}, selected_items={len(selected_items)}")
+            if not selected_items:
+                QMessageBox.warning(self, "No Track Selected", "Please select a track before recording.")
+                return
             self.start_recording()
 
     def start_recording(self):
@@ -291,41 +341,29 @@ class DAW(QMainWindow, QWidget):
         self.notes_window.setFocus()
         self.snap_notes_window()
 
-        # Determine selected track
-        selected_items = self.track_scene.selectedItems()
-        track_index = 0  # Default value
-        y_position = 0
-        if selected_items:
-            selected_item = selected_items[0]
-            # Check if the selected item is one of the track rectangles
-            if selected_item in self.track_rects and isinstance(selected_item, QGraphicsRectItem):
-                track_index = selected_item.data(0)
-                if track_index is not None:  # Additional safety check
-                    y_position = track_index * self.track_height
-                    print(f"Recording on track {track_index}, y_position={y_position}")
-                else:
-                    print("Selected track has no index data, defaulting to track 0")
-            else:
-                print(f"Selected item is not a track rectangle (type: {type(selected_item)}), defaulting to track 0")
-        else:
-            print("No track selected, defaulting to track 0")
+        # Use the stored selected track index
+        track_index = self.selected_track_index
+        if track_index < 0 or track_index >= 5:
+            print(f"Invalid track index {track_index}, defaulting to track 0")
+            track_index = 0
+            self.selected_track_index = 0
+        y_position = track_index * self.track_height
+        print(f"Recording on track {track_index}, y_position={y_position}")
 
-        # Reset playhead and playback state
-        self.playback_timer.stop()  # Stop any ongoing playback
-        self.playhead.setLine(0, 0, 0, 5 * self.track_height)  # Reset playhead to start
+        # Stop any ongoing playback
+        self.playback_timer.stop()
+
+        # Use the playhead's current position as the starting point
+        start_x = self.playhead.line().x1()
         self.playback_start_time = self.recording_session['start_time']  # Reset playback start time
 
         # Calculate start_x based on existing containers on this track
-        start_x = 0
         for container in self.containers:
             if container.current_track == track_index:
                 container_end_x = container.x() + container.rect().width()
                 start_x = max(start_x, container_end_x)
         print(f"Calculated start_x={start_x} for track {track_index}")
 
-        # Use playhead position for x, but ensure it's at least start_x
-        playhead_x = self.playhead.line().x1()
-        start_x = max(start_x, playhead_x)
         print(f"Creating container at start_x={start_x}, y_position={y_position}")
 
         self.current_container = DraggableContainer(self.track_height, start_x, 0, 0, self.track_height)
@@ -337,10 +375,10 @@ class DAW(QMainWindow, QWidget):
         self.current_container.setZValue(5)
         self.track_scene.addItem(self.current_container)
         self.containers.append(self.current_container)
-        print(f"Container added to scene, total containers: {len(self.containers)}")
+        print(f"Container added to scene at track {self.current_container.current_track}, y={self.current_container.y()}, total containers: {len(self.containers)}")
         self.trackView.ensureVisible(self.current_container)
         self.update_timer.start()
-        self.playback_timer.start()
+        # Do not start playback_timer during recording
         self.update_tracks_and_markers()
 
     def snap_notes_window(self):
@@ -368,11 +406,10 @@ class DAW(QMainWindow, QWidget):
             start_time = time.time()
             self.recording_session['active_notes'][note_name] = start_time
             time_per_beat = 60 / self.bpm
-            start_beat = max(0, (start_time - self.recording_session['start_time']) / time_per_beat)  # Clamp to 0
-            x = start_beat * self.base_note_width  # Position based solely on timing
+            start_beat = (start_time - self.recording_session['start_time']) / time_per_beat
+            note_x_relative = start_beat * self.base_note_width  # Position based on timing
             y = self.calculate_note_position(note_name)
-            note_x_relative = x
-            print(f"Adding note at x={x}, relative_x={note_x_relative}, y={y}, container x={self.current_container.x()}")
+            print(f"Adding note at relative_x={note_x_relative}, y={y}, container x={self.current_container.x()}")
             note = QGraphicsRectItem(0, 0, 0, self.note_height)
             note.setPos(note_x_relative, y)
             note.setBrush(QBrush(QColor(100, 149, 237)))
@@ -409,6 +446,19 @@ class DAW(QMainWindow, QWidget):
             return
         current_time = time.time()
         time_per_beat = 60 / self.bpm
+        elapsed_time = current_time - self.recording_session['start_time']
+        pixels_per_second = self.base_note_width * self.bpm / 60
+        # Update playhead position based on recording progress
+        playhead_x = self.current_container.x() + (elapsed_time * pixels_per_second)
+        self.playhead.setLine(playhead_x, 0, playhead_x, 5 * self.track_height)
+        self.playhead.setVisible(True)
+        # Update measure and beat display
+        beat_position = playhead_x / self.base_note_width
+        self.current_measure = int(beat_position // 4) + 1
+        self.current_beat = int(beat_position % 4) + 1
+        self.update_time_display()
+        self.trackView.ensureVisible(QRectF(playhead_x, 0, 10, self.track_height))
+
         for note_name, start_time in list(self.recording_session['active_notes'].items()):
             if note_name in self.active_note_items:
                 duration = current_time - start_time
@@ -475,7 +525,6 @@ class DAW(QMainWindow, QWidget):
             return
         self.recording = False
         self.update_timer.stop()
-        self.playback_timer.stop()
         if self.notes_window:
             self.notes_window.hide()
         current_time = time.time()
@@ -548,6 +597,7 @@ class DAW(QMainWindow, QWidget):
         self.time_signature = project_data["time_signature"]
         self.containers.clear()
         self.track_scene.clear()
+        self.track_background_group = None  # Reset to None since the group was deleted
         self.update_tracks_and_markers()
         self.playhead = self.track_scene.addLine(0, 0, 0, 5 * self.track_height, QPen(Qt.GlobalColor.red, 2))
         self.playhead.setZValue(10)
@@ -599,7 +649,7 @@ class DAW(QMainWindow, QWidget):
         '''
         if self.paused:
             self.paused = False
-            self.playback_start_time = time.time() - (self.paused_position / (self.base_note_width * self.bpm / 60))
+            self.playback_start_time = time.perf_counter() - (self.paused_position / (self.base_note_width * self.bpm / 60))
             self.playhead.setLine(self.paused_position, 0, self.paused_position, 5 * self.track_height)
             self.playhead.setVisible(True)
             self.playback_timer.start()
@@ -618,8 +668,11 @@ class DAW(QMainWindow, QWidget):
             self.playing = True
             self.paused = False
             self.paused_position = None
-            self.playback_start_time = time.time()
-            self.playhead.setLine(0, 0, 0, 5 * self.track_height)
+            # Start playback from the current playhead position
+            current_x = self.playhead.line().x1()
+            pixels_per_second = self.base_note_width * self.bpm / 60
+            elapsed_time = current_x / pixels_per_second
+            self.playback_start_time = time.perf_counter() - elapsed_time
             self.playhead.setVisible(True)
             self.playback_timer.start()
             self.start_audio_playback()
@@ -638,21 +691,31 @@ class DAW(QMainWindow, QWidget):
         self.active_playback_notes.clear()
         self.scheduled_notes.clear()
         pixels_per_second = self.base_note_width * self.bpm / 60
+        # Calculate the playhead's time offset
+        playhead_x = self.playhead.line().x1()
+        playhead_time_offset = playhead_x / pixels_per_second
+        print(f"Starting playback from playhead at x={playhead_x}, time offset={playhead_time_offset} seconds")
         for container in self.containers:
             if not hasattr(container, 'recording_session') or not container.recording_session['notes']:
                 continue
+            print(f"Playing container on track {container.current_track}, y={container.y()}")
             container_x_time = container.x() / pixels_per_second
             for note in container.recording_session['notes']:
                 adjusted_start_time = note['timestamp'] + container_x_time
-                elapsed = time.time() - self.playback_start_time
-                if adjusted_start_time <= elapsed <= adjusted_start_time + note['duration']:
+                # Adjust the start time relative to the playhead's position
+                relative_start_time = adjusted_start_time - playhead_time_offset
+                elapsed = time.perf_counter() - self.playback_start_time
+                print(f"Note: {note['note_name']}, adjusted_start_time={adjusted_start_time}, relative_start_time={relative_start_time}, elapsed={elapsed}")
+                if relative_start_time <= elapsed <= relative_start_time + note['duration']:
                     self.active_playback_notes[note['note_name']] = True
-                elif adjusted_start_time > elapsed:
+                    print(f"Playing note {note['note_name']} immediately")
+                elif relative_start_time > elapsed:
                     self.scheduled_notes.append({
                         'name': note['note_name'],
-                        'start_time': adjusted_start_time,
+                        'start_time': relative_start_time,
                         'duration': note['duration']
                     })
+                    print(f"Scheduled note {note['note_name']} at relative_start_time={relative_start_time}")
 
     def check_note_playback(self):
         '''
@@ -660,7 +723,7 @@ class DAW(QMainWindow, QWidget):
         '''
         if not self.playing or self.paused:
             return
-        current_time = time.time() - self.playback_start_time
+        current_time = time.perf_counter() - self.playback_start_time
         notes_to_remove = []
         for i, note in enumerate(self.scheduled_notes):
             start_time = note['start_time']
@@ -716,7 +779,7 @@ class DAW(QMainWindow, QWidget):
         '''
         if self.playback_start_time is None or self.paused:
             return
-        elapsed_time = time.time() - self.playback_start_time
+        elapsed_time = time.perf_counter() - self.playback_start_time
         pixels_per_second = self.base_note_width * self.bpm / 60
         x_position = elapsed_time * pixels_per_second
         project_end = self.get_project_end()
@@ -725,13 +788,22 @@ class DAW(QMainWindow, QWidget):
             self.stop_playback_internal()
             return
         
+        # Update playhead position
         self.playhead.setLine(x_position, 0, x_position, 5 * self.track_height)
         self.playhead.setVisible(True)
+        
+        # Update measure and beat display
         beat_position = x_position / self.base_note_width
         self.current_measure = int(beat_position // 4) + 1
         self.current_beat = int(beat_position % 4) + 1
         self.update_time_display()
-        self.trackView.ensureVisible(QRectF(x_position, 0, 10, self.track_height))
+        
+        # Only scroll if the playhead is near the edge of the visible area
+        viewport_rect = self.trackView.viewport().rect()
+        playhead_scene_pos = self.trackView.mapFromScene(x_position, 0)
+        if playhead_scene_pos.x() > viewport_rect.width() - 50 or playhead_scene_pos.x() < 50:
+            self.trackView.ensureVisible(QRectF(x_position, 0, 10, self.track_height))
+        
         if self.metronome_on and not self.paused:
             self.align_metronome_to_playhead()
 
@@ -770,7 +842,7 @@ class DAW(QMainWindow, QWidget):
         if self.playing or self.paused:
             pixels_per_second = self.base_note_width * self.bpm / 60
             new_elapsed_time = new_x / pixels_per_second
-            self.playback_start_time = time.time() - new_elapsed_time
+            self.playback_start_time = time.perf_counter() - new_elapsed_time
             if self.paused:
                 self.paused_position = new_x
         beat_position = new_x / self.base_note_width
@@ -801,7 +873,7 @@ class DAW(QMainWindow, QWidget):
         if self.playing or self.paused:
             pixels_per_second = self.base_note_width * self.bpm / 60
             new_elapsed_time = new_x / pixels_per_second
-            self.playback_start_time = time.time() - new_elapsed_time
+            self.playback_start_time = time.perf_counter() - new_elapsed_time
             if self.paused:
                 self.paused_position = new_x
         beat_position = new_x / self.base_note_width
