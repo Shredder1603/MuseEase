@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QLineEdit, QHBoxLayout, QMessageBox, QFileDialog, QGraphicsScene,
-                             QGraphicsRectItem, QGraphicsItemGroup)
+                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog)
 from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction
 from PyQt6 import uic
 from PyQt6.QtCore import Qt, QTimer, QRectF, QMutex
@@ -203,6 +203,9 @@ class DAW(QMainWindow, QWidget):
         # EXPORT FILE HANDLING 
         self.exportMP3 = self.findChild(QAction, "exportMP3")
         self.exportMP3.triggered.connect(self.export_as_mp3)
+        
+        self.save_as = self.findChild(QAction, "actionSave_as")
+        self.save_as.triggered.connect(self.save_as_file)
         
         self.instruments = {}
         self.load_instrument_samples("Piano")
@@ -1082,7 +1085,14 @@ class DAW(QMainWindow, QWidget):
         self.playback_stream.stop()
         self.note_playback_timer.stop()
         event.accept()
-    
+        
+    def save_as_file(self):
+        text, okPressed = QInputDialog.getText(self, "Save As", "File Name:")
+        if okPressed:
+            self.autosave_file = "./Saves/" + text + ".muse"
+        self.autosave()
+        
+        
     def export_as_mp3(self, output_path=None):
         '''
         Export the current project as an MP3 file using preloaded .aiff piano samples.
