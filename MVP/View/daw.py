@@ -178,6 +178,13 @@ class DAW(QMainWindow, QWidget):
         self.update_timer.setInterval(50)
         self.update_timer.timeout.connect(self.update_active_notes)
 
+        # Add countoff timer and state
+        self.countoff_timer = QTimer()
+        self.countoff_timer.setInterval(int(60000 / self.bpm))
+        self.countoff_timer.timeout.connect(self.handle_countoff)
+        self.countoff_beats = 0  # Track the number of countoff beats
+        self.countoff_active = False  # Flag to indicate if countoff is in progress
+
         icons_dir = os.path.join(os.path.dirname(__file__), "Icons")
         print("ICONS: " + icons_dir)
         self.play_icon_path = os.path.join(icons_dir, "Play.png")
@@ -323,7 +330,21 @@ class DAW(QMainWindow, QWidget):
 
     def start_recording(self):
         '''
-        Begins a new recording with new container and timers
+        Initiates a 4-beat countoff before starting a new recording.
+        '''
+        if self.countoff_active:
+            print("Countoff already in progress, ignoring new recording request")
+            return
+
+        self.countoff_active = True
+        self.countoff_beats = 0
+        self.countoff_timer.setInterval(int(60000 / self.bpm))  # Match the BPM
+        self.countoff_timer.start()
+        print("Starting 4-beat countoff before recording")
+
+    def start_recording_internal(self):
+        '''
+        Begins a new recording with new container and timers (called after countoff).
         '''
         self.recording = True
         self.recording_session = {
@@ -922,6 +943,22 @@ class DAW(QMainWindow, QWidget):
             self.current_measure = int(beat_position // 4) + 1
             self.current_beat = int(beat_position % 4) + 1
             self.update_time_display()
+
+    def handle_countoff(self):
+        '''
+        Handles the 4-beat countoff before recording starts.
+        '''
+        if self.countoff_beats < 4:
+            print(f"Countoff beat {self.countoff_beats + 1} at BPM: {self.bpm}")
+            self.metronome_click()  # Reuse the metronome click sound
+            self.countoff_beats += 1
+        else:
+            # Stop the countoff and start recording
+            self.countoff_timer.stop()
+            self.countoff_active = False
+            self.countoff_beats = 0
+            print("Countoff finished, starting recording")
+            self.start_recording_internal()
 
     def update_tempo(self):
         '''
