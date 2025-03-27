@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QLineEdit, QHBoxLayout, QMess
                              QGraphicsRectItem, QGraphicsItemGroup)
 from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction
 from PyQt6 import uic
-from PyQt6.QtCore import Qt, QTimer, QRectF
+from PyQt6.QtCore import Qt, QTimer, QRectF, QMutex
 from .Notes import NotesWindow, SoundGenerator
 from .draggable_container import DraggableContainer
 import sounddevice as sd
@@ -59,6 +59,8 @@ class CustomGraphicsScene(QGraphicsScene):
         super().mousePressEvent(event)
 
 class DAW(QMainWindow, QWidget):
+    mutex = QMutex()
+
     def __init__(self, presenter=None):
         super().__init__()
 
@@ -153,9 +155,9 @@ class DAW(QMainWindow, QWidget):
         self.load_instrument_samples("Piano")  # Preload samples at startup
         self.sound = SoundGenerator(preloaded_samples=self.preloaded_samples)  # Use preloaded samples
         self.playback_stream = sd.OutputStream(
-            samplerate=self.sample_rate,
+            samplerate=self.sound.notes["A0"][1] if "A0" in self.sound.notes else self.sample_rate,
             channels=1,
-            callback=self.sound.audio_callback,
+            callback=self.playback_audio_callback,
         )
 
         self.note_playback_timer = QTimer()
@@ -728,7 +730,11 @@ class DAW(QMainWindow, QWidget):
                 elapsed = time.perf_counter() - self.playback_start_time
                 print(f"Note: {note['note_name']}, adjusted_start_time={adjusted_start_time}, relative_start_time={relative_start_time}, elapsed={elapsed}")
                 if relative_start_time <= elapsed <= relative_start_time + note['duration']:
-                    self.active_playback_notes[note['note_name']] = True
+                    # Modified: Store the note data in the correct format instead of True
+                    data, samplerate = self.sound.notes[note['note_name']]
+                    self.mutex.lock()
+                    self.active_playback_notes[note['note_name']] = {"data": data, "play_pos": 0, "loop": False}
+                    self.mutex.unlock()
                     print(f"Playing note {note['note_name']} immediately")
                 elif relative_start_time > elapsed:
                     self.scheduled_notes.append({
@@ -752,31 +758,80 @@ class DAW(QMainWindow, QWidget):
             name = note['name']
             if start_time <= current_time < end_time:
                 if name not in self.active_playback_notes:
+                    # Modified: Store the note data in the correct format instead of True
+                    data, samplerate = self.sound.notes[name]
+                    self.mutex.lock()
+                    self.active_playback_notes[name] = {"data": data, "play_pos": 0, "loop": False}
+                    self.mutex.unlock()
                     self.sound.note_on(name)
             elif current_time >= end_time:
+                self.mutex.lock()
+                if name in self.active_playback_notes:
+                    del self.active_playback_notes[name]
+                self.mutex.unlock()
                 self.sound.note_off(name)
                 notes_to_remove.append(i)
 
         for i in sorted(notes_to_remove, reverse=True):
             self.scheduled_notes.pop(i)
 
-    def note_on(self, note):
+    def note_on(self, note, loop=False):
         '''
         Plays a note for audio playback
         '''
         self.notes_window.sound.note_on(note)
+        if note not in self.active_playback_notes:
+            data, samplerate = self.sound.notes[note]
+            self.mutex.lock()
+            self.active_playback_notes[note] = {"data": data, "play_pos": 0, "loop": loop}
+            self.mutex.unlock()
 
     def note_off(self, note):
         '''
         Stops a note for audio playback
         '''
         self.notes_window.sound.note_off(note)
+        self.mutex.lock()
+        if note in self.active_playback_notes:
+            del self.active_playback_notes[note]
+        self.mutex.unlock()
 
     def playback_audio_callback(self, outdata, frames, time_info, status):
         '''
         Generates audio for active notes
         '''
-        self.notes_window.sound.audio_callback(outdata, frames, time_info, status)
+        self.mutex.lock()
+        try:
+            if not self.active_playback_notes:
+                outdata.fill(0)
+                return
+
+            mixed = np.zeros(frames)
+
+            to_remove = []
+            for note, note_data in self.active_playback_notes.items():
+                data, play_pos, loop = note_data["data"], note_data["play_pos"], note_data["loop"]
+                chunk = data[play_pos: play_pos + frames]
+
+                mixed[:len(chunk)] += chunk
+                play_pos += frames
+
+                if play_pos >= len(data):
+                    if loop:
+                        play_pos = 0
+                    else:
+                        to_remove.append(note)
+
+                self.active_playback_notes[note]["play_pos"] = play_pos
+
+            for note in to_remove:
+                del self.active_playback_notes[note]
+
+            mixed = np.clip(mixed, -1, 1)
+            outdata[:len(mixed)] = mixed.reshape(-1, 1)
+            outdata[len(mixed):] = 0
+        finally:
+            self.mutex.unlock()
 
     def get_project_end(self):
         '''
@@ -1133,43 +1188,43 @@ class DAW(QMainWindow, QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", f"Error exporting MP3: {str(e)}")
             print(f"Export error details: {str(e)}")
-    
+
     def load_instrument_samples(self, instrument_name):
-        '''
-        Load .aiff samples for the specified instrument into self.instruments.
-        '''
-        instrument_dir = os.path.join(project_root, "Instruments", instrument_name)
-        if not os.path.exists(instrument_dir):
-            return
-        self.instruments[instrument_name] = {}
-        
-        for file in os.listdir(instrument_dir):
-            if file.endswith('.aiff'):
-                note_name = os.path.splitext(file)[0]
-                file_path = os.path.join(instrument_dir, file)
-                try:
-                    data, sample_rate = sf.read(file_path)
-                    if data.ndim > 1:
-                        data = np.mean(data, axis=1)
+            '''
+            Load .aiff samples for the specified instrument into self.instruments.
+            '''
+            instrument_dir = os.path.join(project_root, "Instruments", instrument_name)
+            if not os.path.exists(instrument_dir):
+                return
+            self.instruments[instrument_name] = {}
+            
+            for file in os.listdir(instrument_dir):
+                if file.endswith('.aiff'):
+                    note_name = os.path.splitext(file)[0]
+                    file_path = os.path.join(instrument_dir, file)
+                    try:
+                        data, sample_rate = sf.read(file_path)
+                        if data.ndim > 1:
+                            data = np.mean(data, axis=1)
+                        
+                        end_frame = int(2 * sample_rate)
+                        max_idx = np.argmax(abs(data))
+                        start_frame = 0
+                        for x in range(max_idx - 1, -1, -1):
+                            if abs(data[x]) < 0.0010:
+                                start_frame = x
+                                break
+                        if end_frame > len(data):
+                            end_frame = len(data)
+                        snippet = data[start_frame:end_frame]
+                        
+                        self.instruments[instrument_name][note_name] = {
+                            'data': snippet,
+                            'sample_rate': sample_rate
+                        }
+                    except sf.SoundFileError as e:
+                        print(f"Error loading {file_path}: {str(e)}")
                     
-                    end_frame = int(2 * sample_rate)
-                    max_idx = np.argmax(abs(data))
-                    start_frame = 0
-                    for x in range(max_idx - 1, -1, -1):
-                        if abs(data[x]) < 0.0010:
-                            start_frame = x
-                            break
-                    if end_frame > len(data):
-                        end_frame = len(data)
-                    snippet = data[start_frame:end_frame]
-                    
-                    self.instruments[instrument_name][note_name] = {
-                        'data': snippet,
-                        'sample_rate': sample_rate
-                    }
-                except sf.SoundFileError as e:
-                    print(f"Error loading {file_path}: {str(e)}")
-                   
     def exit_to_main_menu(self):
         '''
         Closes the DAW UI and opens the Main Menu UI by notifying the Presenter.
