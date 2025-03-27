@@ -266,6 +266,8 @@ class DAW(QMainWindow, QWidget):
             self.track_scene.removeItem(self.track_background_group)
         self.track_background_group = QGraphicsItemGroup()
         self.track_scene.addItem(self.track_background_group)
+        # Modified: Set a higher zValue for track_background_group to ensure it draws on top
+        self.track_background_group.setZValue(1)
         view_width = max(self.trackView.width(), self.current_x + 2000)
         track_brush = QBrush(QColor(45, 45, 45))
         track_pen = QPen(QColor(80, 80, 80))
@@ -292,7 +294,9 @@ class DAW(QMainWindow, QWidget):
                 self.track_scene.addLine(x_pos, 0, x_pos, 5 * self.track_height, measure_pen))
             for b in range(1, 4):
                 beat_x = x_pos + b * self.base_note_width
-                self.track_scene.addLine(beat_x, 0, beat_x, 5 * self.track_height, beat_tick_pen)
+                # Modified: Add beat tick marks to track_background_group instead of directly to the scene
+                self.track_background_group.addToGroup(
+                    self.track_scene.addLine(beat_x, 0, beat_x, 5 * self.track_height, beat_tick_pen))
             text = self.track_scene.addText(str(m + 1))
             text.setPos(x_pos + 10, 5)
             text.setDefaultTextColor(QColor(150, 150, 150))
