@@ -15,7 +15,7 @@ import tempfile
 import numpy as np
 import os
 
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class CustomGraphicsScene(QGraphicsScene):
     def __init__(self, parent=None):
@@ -151,11 +151,15 @@ class DAW(QMainWindow, QWidget):
         self.active_playback_notes = {}
         self.phase = {}
         self.notes_window = None  # Initialized later in start_recording
-        self.preloaded_samples = {}  # Store preloaded samples
-        self.load_instrument_samples("Piano")  # Preload samples at startup
-        self.sound = SoundGenerator(preloaded_samples=self.preloaded_samples)  # Use preloaded samples
+
+        # Initialize SoundGenerator and set up instrument selection
+        self.sound = SoundGenerator()
+        self.available_instruments = self.sound.available_instruments
+        self.track_instruments = [self.available_instruments[0] if self.available_instruments else "Piano"] * 5
+        self.setup_instrument_selection()
+
         self.playback_stream = sd.OutputStream(
-            samplerate=self.sound.notes["A0"][1] if "A0" in self.sound.notes else self.sample_rate,
+            samplerate=self.sound.samplerate,
             channels=1,
             callback=self.playback_audio_callback,
         )
@@ -208,7 +212,6 @@ class DAW(QMainWindow, QWidget):
         self.save_as.triggered.connect(self.save_as_file)
         
         self.instruments = {}
-        self.load_instrument_samples("Piano")
 
     def keyPressEvent(self, event):
         '''
@@ -359,13 +362,16 @@ class DAW(QMainWindow, QWidget):
         self.recording_session = {
             'start_time': time.time(),
             'active_notes': {},
-            'notes': []
+            'notes': [],
+            'instrument': self.track_instruments[self.selected_track_index]  # Store the selected instrument
         }
         if self.notes_window is None:
-            self.notes_window = NotesWindow(sound_generator=self.sound)
+            self.notes_window = NotesWindow(sound_generator=self.sound, current_instrument=self.track_instruments[self.selected_track_index])
             self.notes_window.note_started.connect(self.note_started)
             self.notes_window.note_stopped.connect(self.note_stopped)
             self.notes_window.finished.connect(self.stop_recording)
+        else:
+            self.notes_window.set_current_instrument(self.track_instruments[self.selected_track_index])
         self.notes_window.show()
         self.notes_window.activateWindow()
         self.notes_window.setFocus()
@@ -602,7 +608,8 @@ class DAW(QMainWindow, QWidget):
             project_data["containers"].append({
                 "track": container.current_track,
                 "start_x": container.x(),
-                "notes": notes
+                "notes": notes,
+                "instrument": container.recording_session.get('instrument', "Piano")  # Save the instrument
             })
         with open(self.autosave_file, 'w') as f:
             json.dump(project_data, f, indent=4)
@@ -640,7 +647,10 @@ class DAW(QMainWindow, QWidget):
             container.setZValue(5)
             container.setPos(container_data["start_x"], container_data["track"] * self.track_height)
             container.current_track = container_data["track"]
-            container.recording_session = {"notes": container_data["notes"]}
+            container.recording_session = {
+                "notes": container_data["notes"],
+                "instrument": container.recording_session.get('instrument', "Piano")  # Load the instrument
+            }
 
             max_x = 0
             for note_data in container_data["notes"]:
@@ -730,6 +740,7 @@ class DAW(QMainWindow, QWidget):
                 continue
             print(f"Playing container on track {container.current_track}, y={container.y()}")
             container_x_time = container.x() / pixels_per_second
+            instrument = container.recording_session.get('instrument', "Piano")
             for note in container.recording_session['notes']:
                 adjusted_start_time = note['timestamp'] + container_x_time
                 # Adjust the start time relative to the playhead's position
@@ -737,17 +748,19 @@ class DAW(QMainWindow, QWidget):
                 elapsed = time.perf_counter() - self.playback_start_time
                 print(f"Note: {note['note_name']}, adjusted_start_time={adjusted_start_time}, relative_start_time={relative_start_time}, elapsed={elapsed}")
                 if relative_start_time <= elapsed <= relative_start_time + note['duration']:
-                    # Modified: Store the note data in the correct format instead of True
-                    data, samplerate = self.sound.notes[note['note_name']]
-                    self.mutex.lock()
-                    self.active_playback_notes[note['note_name']] = {"data": data, "play_pos": 0, "loop": False}
-                    self.mutex.unlock()
-                    print(f"Playing note {note['note_name']} immediately")
+                    # Use the instrument from the container
+                    if note['note_name'] in self.sound.instruments[instrument]:
+                        data, samplerate = self.sound.instruments[instrument][note['note_name']]
+                        self.mutex.lock()
+                        self.active_playback_notes[note['note_name']] = {"data": data, "play_pos": 0, "loop": False}
+                        self.mutex.unlock()
+                        print(f"Playing note {note['note_name']} immediately with instrument {instrument}")
                 elif relative_start_time > elapsed:
                     self.scheduled_notes.append({
                         'name': note['note_name'],
                         'start_time': relative_start_time,
-                        'duration': note['duration']
+                        'duration': note['duration'],
+                        'instrument': instrument
                     })
                     print(f"Scheduled note {note['note_name']} at relative_start_time={relative_start_time}")
 
@@ -763,20 +776,21 @@ class DAW(QMainWindow, QWidget):
             start_time = note['start_time']
             end_time = start_time + note['duration']
             name = note['name']
+            instrument = note['instrument']
             if start_time <= current_time < end_time:
                 if name not in self.active_playback_notes:
-                    # Modified: Store the note data in the correct format instead of True
-                    data, samplerate = self.sound.notes[name]
-                    self.mutex.lock()
-                    self.active_playback_notes[name] = {"data": data, "play_pos": 0, "loop": False}
-                    self.mutex.unlock()
-                    self.sound.note_on(name)
+                    if name in self.sound.instruments[instrument]:
+                        data, samplerate = self.sound.instruments[instrument][name]
+                        self.mutex.lock()
+                        self.active_playback_notes[name] = {"data": data, "play_pos": 0, "loop": False}
+                        self.mutex.unlock()
+                        self.sound.note_on(name, instrument=instrument)
             elif current_time >= end_time:
                 self.mutex.lock()
                 if name in self.active_playback_notes:
                     del self.active_playback_notes[name]
                 self.mutex.unlock()
-                self.sound.note_off(name)
+                self.sound.note_off(name, instrument=instrument)
                 notes_to_remove.append(i)
 
         for i in sorted(notes_to_remove, reverse=True):
@@ -1010,243 +1024,187 @@ class DAW(QMainWindow, QWidget):
         '''
         Handles the 4-beat countoff before recording starts.
         '''
-        if self.countoff_beats < 4:
-            print(f"Countoff beat {self.countoff_beats + 1} at BPM: {self.bpm}")
-            self.metronome_click()  # Reuse the metronome click sound
-            self.countoff_beats += 1
-        else:
-            # Stop the countoff and start recording
+        self.countoff_beats += 1
+        print(f"Countoff beat {self.countoff_beats} at BPM: {self.bpm}")
+        click_sample = np.sin(2 * np.pi * 1000 * np.arange(1000) / 44100) * 0.5
+        sd.play(click_sample, samplerate=44100)
+        
+        if self.countoff_beats >= 4:
             self.countoff_timer.stop()
             self.countoff_active = False
-            self.countoff_beats = 0
             print("Countoff finished, starting recording")
             self.start_recording_internal()
 
-    def update_tempo(self):
-        '''
-        Updates BPM of DAW as well as metronome timer/display
-        '''
-        text = self.tempo_edit.text()
-        try:
-            new_bpm = int(text.split()[1])
-            if new_bpm <= 0:
-                raise ValueError
-            self.bpm = new_bpm
-            self.update_time_display()
-            if self.metronome_on:
-                self.metronome_timer.setInterval(int(60000 / self.bpm))
-        except ValueError:
-            print("Invalid BPM value. Using default 120.")
-            self.bpm = 120
-            self.tempo_edit.setText(f"Tempo: {self.bpm} BPM")
-            if self.metronome_on:
-                self.metronome_timer.setInterval(int(60000 / self.bpm))
-
-    def update_time(self):
-        '''
-        Updates time signature from user input
-        '''
-        text = self.time_edit.text()
-        try:
-            if "/" in text.split()[1]:
-                new_time_signature = text.split()[1]
-                beats, beat_type = map(int, new_time_signature.split("/"))
-                if beats > 0 and beat_type > 0:
-                    self.time_signature = new_time_signature
-                    self.update_time_display()
-                    return
-            raise ValueError
-        except ValueError:
-            print("Invalid time signature format. Using default 4/4.")
-            self.time_signature = "4/4"
-            self.time_edit.setText(f"Time: {self.time_signature}")
-
     def update_measure(self):
         '''
-        Updates measure and beat from user input
+        Updates measure and beat based on user input
         '''
         text = self.measure_edit.text()
         try:
-            new_measure = text.split()[1]
-            measure, beat = map(int, new_measure.split(":"))
-            if measure > 0 and beat > 0 and beat <= 4:
-                self.current_measure = measure
-                self.current_beat = beat
-                self.update_time_display()
-                return
-            raise ValueError
+            measure, beat = map(int, text.replace("Measure: ", "").split(":"))
+            if measure < 1 or beat < 1 or beat > 4:
+                raise ValueError("Invalid measure or beat")
+            self.current_measure = measure
+            self.current_beat = beat
+            new_x = ((measure - 1) * 4 + (beat - 1)) * self.base_note_width
+            self.playhead.setLine(new_x, 0, new_x, 5 * self.track_height)
+            if self.playing or self.paused:
+                pixels_per_second = self.base_note_width * self.bpm / 60
+                new_elapsed_time = new_x / pixels_per_second
+                self.playback_start_time = time.perf_counter() - new_elapsed_time
+                if self.paused:
+                    self.paused_position = new_x
+            self.trackView.ensureVisible(QRectF(new_x, 0, 10, self.track_height))
         except ValueError:
-            print("Invalid measure format. Using default 1:1.")
-            self.current_measure = 1
-            self.current_beat = 1
-            self.measure_edit.setText(f"Measure: {self.current_measure}:{self.current_beat}")
+            QMessageBox.warning(self, "Invalid Input", "Please enter measure and beat in the format 'Measure: M:B' (e.g., 'Measure: 1:1')")
+            self.update_time_display()
+
+    def update_tempo(self):
+        '''
+        Updates tempo based on user input
+        '''
+        text = self.tempo_edit.text()
+        try:
+            bpm = int(text.replace("Tempo: ", "").replace(" BPM", ""))
+            if bpm < 1:
+                raise ValueError("Tempo must be positive")
+            self.bpm = bpm
+            self.metronome_timer.setInterval(int(60000 / self.bpm))
+            self.countoff_timer.setInterval(int(60000 / self.bpm))
+            if self.playing or self.paused:
+                current_x = self.playhead.line().x1()
+                pixels_per_second = self.base_note_width * self.bpm / 60
+                elapsed_time = current_x / pixels_per_second
+                self.playback_start_time = time.perf_counter() - elapsed_time
+                if self.paused:
+                    self.paused_position = current_x
+            self.update_time_display()
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter a valid tempo (e.g., 'Tempo: 120 BPM')")
+            self.update_time_display()
+
+    def update_time(self):
+        '''
+        Updates time signature based on user input
+        '''
+        text = self.time_edit.text()
+        try:
+            time_sig = text.replace("Time: ", "")
+            if time_sig not in ["4/4", "3/4", "6/8"]:
+                raise ValueError("Unsupported time signature")
+            self.time_signature = time_sig
+            self.update_time_display()
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter a valid time signature (e.g., 'Time: 4/4')")
+            self.update_time_display()
+
+    def setup_instrument_selection(self):
+        '''
+        Sets up the QComboBox widgets for instrument selection for each track.
+        '''
+        self.instrument_boxes = [
+            self.instrument1,
+            self.instrument2,
+            self.instrument3,
+            self.instrument4,
+            self.instrument5
+        ]
+
+        for i, combo_box in enumerate(self.instrument_boxes):
+            combo_box.addItems(self.available_instruments)
+            combo_box.setCurrentText(self.track_instruments[i])
+            # Connect the signal to update the instrument for the track
+            combo_box.currentTextChanged.connect(lambda text, idx=i: self.update_track_instrument(idx, text))
+
+    def update_track_instrument(self, track_index, instrument):
+        '''
+        Updates the instrument for the specified track and updates the UI.
+        '''
+        self.track_instruments[track_index] = instrument
+        print(f"Track {track_index + 1} instrument updated to {instrument}")
+        # If recording on this track, update the NotesWindow's instrument
+        if self.recording and self.selected_track_index == track_index and self.notes_window:
+            self.notes_window.set_current_instrument(instrument)
+
+    def export_as_mp3(self):
+        '''
+        Exports the project as an MP3 file using ffmpeg.
+        '''
+        # Step 1: Collect all audio data
+        pixels_per_second = self.base_note_width * self.bpm / 60
+        total_duration = self.get_project_end() / pixels_per_second  # in seconds
+        total_samples = int(total_duration * self.sample_rate)
+        mixed_audio = np.zeros(total_samples)
+
+        for container in self.containers:
+            if not hasattr(container, 'recording_session') or not container.recording_session['notes']:
+                continue
+            container_start_time = container.x() / pixels_per_second
+            instrument = container.recording_session.get('instrument', "Piano")
+            for note in container.recording_session['notes']:
+                note_start_time = container_start_time + note['timestamp']
+                note_duration = note['duration']
+                note_name = note['note_name']
+                if note_name in self.sound.instruments[instrument]:
+                    data, samplerate = self.sound.instruments[instrument][note_name]
+                    if samplerate != self.sample_rate:
+                        # Resample the audio data to match the DAW's sample rate
+                        data = scipy.signal.resample(data, int(len(data) * self.sample_rate / samplerate))
+                    start_sample = int(note_start_time * self.sample_rate)
+                    end_sample = start_sample + len(data)
+                    if end_sample > len(mixed_audio):
+                        # Extend the mixed_audio array if necessary
+                        mixed_audio = np.pad(mixed_audio, (0, end_sample - len(mixed_audio)), mode='constant')
+                    # Mix the note into the audio
+                    mixed_audio[start_sample:end_sample] += data[:end_sample - start_sample]
+
+        # Step 2: Normalize and clip the audio
+        mixed_audio = np.clip(mixed_audio, -1, 1)
+
+        # Step 3: Save as WAV temporarily
+        temp_wav = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+        sf.write(temp_wav.name, mixed_audio, self.sample_rate)
+
+        # Step 4: Convert to MP3 using ffmpeg
+        output_file, _ = QFileDialog.getSaveFileName(self, "Export MP3", "", "MP3 Files (*.mp3)")
+        if output_file:
+            if not output_file.endswith('.mp3'):
+                output_file += '.mp3'
+            try:
+                subprocess.run(['ffmpeg', '-y', '-i', temp_wav.name, output_file], check=True)
+                QMessageBox.information(self, "Export Successful", f"Project exported as {output_file}")
+            except subprocess.CalledProcessError as e:
+                QMessageBox.critical(self, "Export Failed", f"Failed to export MP3: {str(e)}")
+            finally:
+                temp_wav.close()
+                os.remove(temp_wav.name)
+
+    def save_as_file(self):
+        '''
+        Saves the project to a user-specified .muse file.
+        '''
+        filename, _ = QFileDialog.getSaveFileName(self, "Save Project As", "", "Muse Files (*.muse)")
+        if filename:
+            if not filename.endswith('.muse'):
+                filename += '.muse'
+            self.save_project(filename)
+
+    def exit_to_main_menu(self):
+        '''
+        Exits to the main menu, autosaving the project.
+        '''
+        self.autosave()
+        self.close()
+        if self.presenter:
+            self.presenter.show_main_menu()
 
     def closeEvent(self, event):
         '''
-        Autosaves, cleans and closes the DAW
+        Handles window close event, ensuring proper cleanup.
         '''
         self.autosave()
+        if self.notes_window:
+            self.notes_window.close()
         self.playback_stream.stop()
-        self.note_playback_timer.stop()
+        self.playback_stream.close()
         event.accept()
-        
-    def save_as_file(self):
-        text, okPressed = QInputDialog.getText(self, "Save As", "File Name:")
-        if okPressed:
-            self.autosave_file = "./Saves/" + text + ".muse"
-        self.autosave()
-        
-        
-    def export_as_mp3(self, output_path=None):
-        '''
-        Export the current project as an MP3 file using preloaded .aiff piano samples.
-        '''
-        try:
-            if not output_path:
-                output_path, _ = QFileDialog.getSaveFileName(
-                    self, "Save MP3 File", "", "MP3 Files (*.mp3)"
-                )
-                if not output_path:
-                    QMessageBox.warning(self, "Export Failed", "No output file selected.")
-                    return
-
-            total_duration = 0
-            pixels_per_second = self.base_note_width * self.bpm / 60
-            for container in self.containers:
-                if hasattr(container, 'recording_session') and container.recording_session['notes']:
-                    container_start_time = container.x() / pixels_per_second
-                    for note in container.recording_session['notes']:
-                        end_time = container_start_time + note['timestamp'] + note['duration']
-                        total_duration = max(total_duration, end_time)
-            print(f"Calculated total duration: {total_duration} seconds")
-
-            if total_duration <= 0:
-                QMessageBox.warning(self, "Export Failed", "No audio data to export.")
-                return
-
-            sample_rate = self.sample_rate
-            num_samples = int(total_duration * sample_rate)
-            audio_data = np.zeros(num_samples, dtype=np.float32)
-
-            print(f"Initializing audio_data with {num_samples} samples")
-
-            instrument = "Piano"
-            if instrument not in self.instruments:
-                raise ValueError(f"Instrument {instrument} not found in self.instruments")
-
-            for container in self.containers:
-                if hasattr(container, 'recording_session') and container.recording_session['notes']:
-                    container_start_time = container.x() / pixels_per_second
-                    print(f"Processing container at x={container.x()}, start_time={container_start_time} seconds")
-                    for note in container.recording_session['notes']:
-                        adjusted_timestamp = container_start_time + note['timestamp']
-                        start_sample = int(adjusted_timestamp * sample_rate)
-                        duration_samples = int(note['duration'] * sample_rate)
-                        note_name = note['note_name']
-                        print(f"Processing note: {note_name}, start_sample: {start_sample}, duration_samples: {duration_samples}")
-
-                        if note_name in self.instruments[instrument]:
-                            sample_data = self.instruments[instrument][note_name]['data']
-                            sample_rate_sample = self.instruments[instrument][note_name]['sample_rate']
-                            print(f"Loaded sample for {note_name}, length: {len(sample_data)}, sample_rate: {sample_rate_sample}")
-
-                            if sample_rate_sample != sample_rate:
-                                from scipy import signal
-                                sample_data = signal.resample(sample_data, int(len(sample_data) * sample_rate / sample_rate_sample))
-                                print(f"Resampled {note_name} to {len(sample_data)} samples")
-
-                            if len(sample_data) < duration_samples:
-                                num_loops = (duration_samples + len(sample_data) - 1) // len(sample_data)
-                                sample_data = np.tile(sample_data, num_loops)[:duration_samples]
-                                print(f"Looped {note_name} {num_loops} times to match duration")
-                            elif len(sample_data) > duration_samples:
-                                sample_data = sample_data[:duration_samples]
-                                print(f"Trimmed {note_name} to match duration")
-
-                            samples = sample_data * 0.5
-                            end_sample = start_sample + duration_samples
-                            if end_sample <= len(audio_data):
-                                audio_data[start_sample:end_sample] += samples
-                                print(f"Mixed {note_name} into audio_data[{start_sample}:{end_sample}]")
-                            else:
-                                excess = end_sample - len(audio_data)
-                                audio_data[start_sample:] += samples[:-excess]
-                                print(f"Trimmed and mixed {note_name} due to length mismatch, excess: {excess}")
-                        else:
-                            print(f"Warning: Sample for {note_name} not found in {instrument}")
-
-            max_amplitude = np.max(np.abs(audio_data))
-            if max_amplitude > 0:
-                audio_data = audio_data / max_amplitude
-                print(f"Normalized audio, max amplitude: {max_amplitude}")
-            else:
-                print("Warning: Audio data is silent (max amplitude = 0)")
-
-            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
-                wav_path = temp_wav.name
-                sf.write(wav_path, audio_data, sample_rate, format='WAV')
-                print(f"Saved temporary WAV file: {wav_path}")
-
-            mp3_path = output_path
-            ffmpeg_cmd = [
-                'ffmpeg', '-i', wav_path, '-c:a', 'libmp3lame', '-q:a', '2',
-                '-y', mp3_path
-            ]
-            result = subprocess.run(ffmpeg_cmd, check=True, capture_output=True, text=True)
-            print(f"FFmpeg output: {result.stdout}")
-            print(f"FFmpeg errors (if any): {result.stderr}")
-
-            os.unlink(wav_path)
-
-            QMessageBox.information(self, "Export Successful", f"Exported to: {mp3_path}")
-        except Exception as e:
-            QMessageBox.critical(self, "Export Failed", f"Error exporting MP3: {str(e)}")
-            print(f"Export error details: {str(e)}")
-
-    def load_instrument_samples(self, instrument_name):
-            '''
-            Load .aiff samples for the specified instrument into self.instruments.
-            '''
-            instrument_dir = os.path.join(project_root, "Instruments", instrument_name)
-            if not os.path.exists(instrument_dir):
-                return
-            self.instruments[instrument_name] = {}
-            
-            for file in os.listdir(instrument_dir):
-                if file.endswith('.aiff'):
-                    note_name = os.path.splitext(file)[0]
-                    file_path = os.path.join(instrument_dir, file)
-                    try:
-                        data, sample_rate = sf.read(file_path)
-                        if data.ndim > 1:
-                            data = np.mean(data, axis=1)
-                        
-                        end_frame = int(2 * sample_rate)
-                        max_idx = np.argmax(abs(data))
-                        start_frame = 0
-                        for x in range(max_idx - 1, -1, -1):
-                            if abs(data[x]) < 0.0010:
-                                start_frame = x
-                                break
-                        if end_frame > len(data):
-                            end_frame = len(data)
-                        snippet = data[start_frame:end_frame]
-                        
-                        self.instruments[instrument_name][note_name] = {
-                            'data': snippet,
-                            'sample_rate': sample_rate
-                        }
-                    except sf.SoundFileError as e:
-                        print(f"Error loading {file_path}: {str(e)}")
-                    
-    def exit_to_main_menu(self):
-        '''
-        Closes the DAW UI and opens the Main Menu UI by notifying the Presenter.
-        '''
-        if self.presenter:
-            self.presenter.on_exit_to_menu_requested()
-        else:
-            self.close()
-            from .main_menu import Main_Menu
-            main_menu = Main_Menu()
-            main_menu.show()
