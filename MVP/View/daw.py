@@ -211,8 +211,8 @@ class DAW(QMainWindow, QWidget):
         self.exportMP3 = self.findChild(QAction, "exportMP3")
         self.exportMP3.triggered.connect(self.export_as_mp3)
         
-        self.save_as = self.findChild(QAction, "actionSave_as")
-        self.save_as.triggered.connect(self.save_as_file)
+        self.save_project_action = self.findChild(QAction, "actionSave_project")
+        self.save_project_action.triggered.connect(self.save_project)
         
         self.instruments = {}
 
@@ -626,7 +626,7 @@ class DAW(QMainWindow, QWidget):
         if self.presenter:
             self.presenter.saved_projects_init()
 
-    def load_project(self, filename):
+    def load_project(self, filename, muse_file):
         '''
         Loads project data from .muse file and rebuilds the UI based off that data
         '''
@@ -652,7 +652,7 @@ class DAW(QMainWindow, QWidget):
             container.current_track = container_data["track"]
             container.recording_session = {
                 "notes": container_data["notes"],
-                "instrument": container.recording_session.get('instrument', "Piano")  # Load the instrument
+                "instrument": container_data["instrument"]  # Load the instrument
             }
 
             max_x = 0
@@ -673,6 +673,7 @@ class DAW(QMainWindow, QWidget):
 
         self.current_x = max([c.x() + c.rect().width() for c in self.containers], default=0)
         self.update_time_display()
+        self.autosave_file = "./Saves/" + muse_file + ".muse"
 
     def calculate_note_position(self, note_name):
         '''
@@ -1182,15 +1183,21 @@ class DAW(QMainWindow, QWidget):
                 temp_wav.close()
                 os.remove(temp_wav.name)
 
-    def save_as_file(self):
-        '''
-        Saves the project to a user-specified .muse file.
-        '''
-        filename, _ = QFileDialog.getSaveFileName(self, "Save Project As", "", "Muse Files (*.muse)")
-        if filename:
-            if not filename.endswith('.muse'):
-                filename += '.muse'
-            self.save_project(filename)
+    def save_project(self):
+        saved_path = os.path.join(project_root, "Saves")
+        saved_files = os.listdir(saved_path)
+        text, okPressed = QInputDialog.getText(self, "Save Project", "Project Name:")
+        if okPressed:
+            new_file = text + ".muse"
+            if new_file in saved_files:
+                over_write = QMessageBox.question(self, "Save Project", "Overwrite Existing Project",
+                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                if over_write == QMessageBox.StandardButton.Yes:
+                    self.autosave_file = "./Saves/" + new_file
+                    self.autosave()
+            else:
+                self.autosave_file = "./Saves/" + new_file
+                self.autosave()
 
     def exit_to_main_menu(self):
         '''
