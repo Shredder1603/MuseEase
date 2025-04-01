@@ -17,7 +17,6 @@ class SoundGenerator:
         An instance of SoundGenerator ready for generating audio.
     '''
     def __init__(self, instruments=None, current_instrument="Piano"):
-        import soundfile as sf
         self.sf = sf
         self.mutex = QMutex()
         self.active_notes = {}
