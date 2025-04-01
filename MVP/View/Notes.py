@@ -2,70 +2,73 @@ import sys
 import os
 import numpy as np
 import sounddevice as sd
+import scipy
 import soundfile as sf
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtCore import Qt, QMutex, QMutexLocker, pyqtSignal
 from PyQt6 import uic
 
 class SoundGenerator:
-    '''
-    Function Description:
-        Initialize the SoundGenerator, set up the audio stream, and initialize state.
-    Inputs:
-        preloaded_samples (dict, optional): Preloaded audio samples to use instead of loading from disk.
-    Outputs:
-        An instance of SoundGenerator ready for generating audio.
-    '''
-    def __init__(self, instruments=None, current_instrument="Piano"):
+    def __init__(self, instruments=None, current_instrument="Guitar"):
         self.sf = sf
         self.mutex = QMutex()
         self.active_notes = {}
         self.instruments = instruments if instruments else {}
         self.current_instrument = current_instrument
         self.notes = self.instruments.get(self.current_instrument, {})
-        self.samplerate = 44100  # Match DAW's sample rate if preloaded, otherwise set later
-        
-        if not self.instruments:  # If no preloaded instruments, load them
+        self.samplerate = 44100
+        self.sample_filepaths = {}
+        if not self.instruments:
             self.load_all_instruments()
             self.notes = self.instruments.get(self.current_instrument, {})
-        
         self.stream = sd.OutputStream(
-            samplerate=self.samplerate if self.samplerate else self.notes["A0"][1] if "A0" in self.notes else 44100,
+            samplerate=self.samplerate,
             channels=1,
             callback=self.audio_callback
         )
         self.stream.start()
 
     def load_all_instruments(self):
-        '''
-        Load all instruments from the Instruments directory using the original read_notes logic.
-        '''
         instruments_dir = os.path.join(os.getcwd(), "Instruments")
         if not os.path.exists(instruments_dir):
             print(f"Instruments directory {instruments_dir} not found.")
             return
         
         self.available_instruments = []
+        target_samplerate = 44100  # Target sample rate for playback
+        
         for instrument_name in os.listdir(instruments_dir):
             instrument_path = os.path.join(instruments_dir, instrument_name)
             if os.path.isdir(instrument_path):
                 self.instruments[instrument_name] = {}
+                self.sample_filepaths[instrument_name] = {}
                 for filename in os.listdir(instrument_path):
                     filepath = os.path.join(instrument_path, filename)
-                    if filename.endswith(('.aiff', '.wav')):  # Support both AIFF and WAV
-                        # Extract the note name and technique from the filename
-                        base_name = os.path.splitext(filename)[0]  # e.g., "sulE_E2" or "C1"
+                    if filename.endswith(('.aiff', '.wav')):
+                        base_name = os.path.splitext(filename)[0]
                         if "_" in base_name:
-                            technique, note_name = base_name.split("_", 1)  # e.g., "sulE", "E2"
+                            technique, note_name = base_name.split("_", 1)
                         else:
                             technique = None
-                            note_name = base_name  # e.g., "C1"
+                            note_name = base_name
 
                         try:
                             data, samplerate = self.sf.read(filepath)
-
                             if data.ndim > 1:
                                 data = np.mean(data, axis=1)
+                            
+                            # Resample if the sample rate doesn't match the target
+                            if samplerate != target_samplerate:
+                                num_samples = int(len(data) * target_samplerate / samplerate)
+                                data = scipy.signal.resample(data, num_samples)
+                                samplerate = target_samplerate
+                            
+                            # Normalize the amplitude to a peak of 0.9
+                            max_amplitude = np.max(np.abs(data))
+                            if max_amplitude > 0:
+                                data = data * (0.9 / max_amplitude)
+                            else:
+                                print(f"Warning: Sample {filepath} has zero amplitude")
 
                             max_idx = np.argmax(np.abs(data))
                             start_frame = 0
@@ -74,12 +77,11 @@ class SoundGenerator:
                                     start_frame = x
                                     break
                             end_frame = len(data)
-
                             snippet = data[start_frame:end_frame]
                             self.instruments[instrument_name][note_name] = (snippet, samplerate)
+                            self.sample_filepaths[instrument_name][note_name] = filepath
                             if self.samplerate is None:
                                 self.samplerate = samplerate
-                            print(f"Loaded {instrument_name}/{note_name} (technique: {technique})")
                         except sf.SoundFileError as e:
                             print(f"Error loading {filepath}: {str(e)}")
                 if self.instruments[instrument_name]:
@@ -87,114 +89,91 @@ class SoundGenerator:
         print(f"Available instruments: {self.available_instruments}")
 
     def set_current_instrument(self, instrument):
-        '''
-        Update the current instrument and its notes.
-        '''
         self.current_instrument = instrument
         self.notes = self.instruments.get(self.current_instrument, {})
         print(f"SoundGenerator: Switched to instrument {self.current_instrument}")
 
+    def note_on(self, note: str, instrument: str = None, loop: bool = False):
+        """
+        Start playing a note.
+        Args:
+            note (str): The note to play (e.g., "C4").
+            instrument (str, optional): The instrument to use.
+            loop (bool, optional): Whether to loop the note.
+        """
+        target_instrument = instrument if instrument else self.current_instrument
+        adjusted_note = note  # No pitch shift needed
+        
+        # Get target notes dictionary
+        target_notes = self.instruments.get(target_instrument, {})
+        
+        # Determine the expected and actual sample files
+        expected_file = self.sample_filepaths.get(target_instrument, {}).get(note, "Unknown filepath")
+        actual_note = adjusted_note if adjusted_note in target_notes else None
+        actual_file = self.sample_filepaths.get(target_instrument, {}).get(actual_note, "No file accessed")
+        
+        # Log the expected and actual note/file information
+        print(f"NOTE_ON: Expected note: {note}, Actual note played: {actual_note}")
+        print(f"NOTE_ON: Expected file: {expected_file}, Actual file accessed: {actual_file}")
+        
+        # Play the note if it exists
+        if adjusted_note not in self.active_notes and adjusted_note in target_notes:
+            data, samplerate = target_notes[adjusted_note]
+            
+            if self.samplerate is None:
+                self.samplerate = samplerate
+                
+            self.mutex.lock()
+            self.active_notes[adjusted_note] = {"data": data, "play_pos": 0, "loop": loop}
+            self.mutex.unlock()
+        else:
+            if adjusted_note not in target_notes:
+                print(f"Note {adjusted_note} not found in {target_instrument} samples")
+            else:
+                print(f"Note {adjusted_note} already active")
+
+    def note_off(self, note: str, instrument: str = None):
+        """
+        Stop playing a note by removing it from the active notes.
+        Args:
+            note (str): The note to stop (e.g., "C4").
+            instrument (str, optional): The instrument the note was played with.
+        """
+        target_instrument = instrument if instrument else self.current_instrument
+        adjusted_note = note  # No pitch shift needed
+        
+        self.mutex.lock()
+        if adjusted_note in self.active_notes:
+            del self.active_notes[adjusted_note]
+        self.mutex.unlock()
+
     def audio_callback(self, outdata, frames, time, status):
-        """ Stream callback to play audio samples. """
+        """Stream callback to play audio samples."""
         self.mutex.lock()
         try:
             if not self.active_notes:
                 outdata.fill(0)
                 return
-
             mixed = np.zeros(frames)
-
             to_remove = []
             for note, note_data in self.active_notes.items():
                 data, play_pos, loop = note_data["data"], note_data["play_pos"], note_data["loop"]
                 chunk = data[play_pos: play_pos + frames]
-
                 mixed[:len(chunk)] += chunk
                 play_pos += frames
-
                 if play_pos >= len(data):
                     if loop:
                         play_pos = 0
                     else:
                         to_remove.append(note)
-
                 self.active_notes[note]["play_pos"] = play_pos
-
             for note in to_remove:
                 del self.active_notes[note]
-
             mixed = np.clip(mixed, -1, 1)
             outdata[:len(mixed)] = mixed.reshape(-1, 1)
             outdata[len(mixed):] = 0
         finally:
             self.mutex.unlock()
-
-    def note_on(self, note: str, instrument: str = None, loop: bool = False):
-        '''
-        Function Description:
-            Start playing a note by adding its frequency to the active notes.
-        Inputs:
-            note (str): The note to be played (e.g., "C4").
-            instrument (str, optional): The instrument to use for the note.
-            loop (bool): Whether to loop the sample.
-        Outputs:
-            The note is added to active_notes and will be generated in the audio callback.
-        '''
-        target_instrument = instrument if instrument else self.current_instrument
-        target_notes = self.instruments.get(target_instrument, {})
-        if note not in self.active_notes and note in target_notes:
-            data, samplerate = target_notes[note]  # Original tuple format
-
-            if self.samplerate is None:
-                self.samplerate = samplerate
-
-            self.mutex.lock()
-            self.active_notes[note] = {"data": data, "play_pos": 0, "loop": loop}
-            self.mutex.unlock()
-
-    def note_off(self, note: str, instrument: str = None):
-        '''
-        Function Description:
-            Stop playing a note by removing its frequency from the active notes.
-        Inputs:
-            note (str): The note to stop (e.g., "C4").
-            instrument (str, optional): The instrument the note was played with.
-        Outputs:
-            The note is removed from active_notes and its phase tracking is deleted.
-        '''
-        self.mutex.lock()
-        if note in self.active_notes:
-            del self.active_notes[note]
-        self.mutex.unlock()
-
-    def read_notes(self):
-        '''
-        Function Description:
-            Load piano note samples from the Instruments/Piano directory.
-        Inputs:
-            None
-        Outputs:
-            Populates self.notes with audio data and sample rates for each note.
-        '''
-        for filename in os.listdir(os.getcwd() + "/Instruments/Piano/"):
-            filepath = os.getcwd() + "/Instruments/Piano/" + filename
-            data, samplerate = self.sf.read(filepath)
-
-            if data.ndim > 1:
-                data = np.mean(data, axis=1)
-
-            max_idx = np.argmax(np.abs(data))
-            start_frame = 0
-            for x in range(max_idx - 1, -1, -1):
-                if np.abs(data[x]) <= 0.008 * np.abs(data[max_idx]):
-                    start_frame = x
-                    break
-            end_frame = len(data)
-
-            snippet = data[start_frame:end_frame]
-            self.notes[filename.split(".")[0]] = (snippet, samplerate)
-            if self.samplerate is None:
-                self.samplerate = samplerate
 
 class NotesWindow(QMainWindow):
     note_started = pyqtSignal(str)  # Signal for note start
