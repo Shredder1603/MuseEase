@@ -1,2 +1,6 @@
 PyQt6 
 pyinstaller
+numpy
+sounddevice
+soundfile
+scipy
