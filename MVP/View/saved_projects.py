@@ -67,7 +67,7 @@ class Saved_Projects(QDialog, QWidget):
         self.presenter.new_project = daw
         self.presenter.stacked_widget.addWidget(daw)
         self.presenter.stacked_widget.setCurrentWidget(daw)
-        daw.load_project(project_path)
+        daw.load_project(project_path, selected_file)
 
     def delete_selected_project(self):
         """Deletes the selected project."""

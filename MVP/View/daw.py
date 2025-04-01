@@ -626,7 +626,7 @@ class DAW(QMainWindow, QWidget):
         if self.presenter:
             self.presenter.saved_projects_init()
 
-    def load_project(self, filename):
+    def load_project(self, filename, muse_file):
         '''
         Loads project data from .muse file and rebuilds the UI based off that data
         '''
@@ -652,7 +652,7 @@ class DAW(QMainWindow, QWidget):
             container.current_track = container_data["track"]
             container.recording_session = {
                 "notes": container_data["notes"],
-                "instrument": container.recording_session.get('instrument', "Piano")  # Load the instrument
+                "instrument": container_data["instrument"]  # Load the instrument
             }
 
             max_x = 0
@@ -673,6 +673,7 @@ class DAW(QMainWindow, QWidget):
 
         self.current_x = max([c.x() + c.rect().width() for c in self.containers], default=0)
         self.update_time_display()
+        self.autosave_file = "./Saves/" + muse_file + ".muse"
 
     def calculate_note_position(self, note_name):
         '''
