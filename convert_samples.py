@@ -43,7 +43,7 @@ def detect_onsets(audio, threshold_db=-30, min_spacing_ms=400):
     return onsets
 
 # Pass 1: Convert .aif/.aiff to .wav
-print("🎧 Converting .aif/.aiff to .wav...")
+print(" Converting .aif/.aiff to .wav...")
 for fname in os.listdir(INPUT_DIR):
     if fname.lower().endswith((".aif", ".aiff")):
         in_path = os.path.join(INPUT_DIR, fname)
@@ -51,9 +51,9 @@ for fname in os.listdir(INPUT_DIR):
         try:
             audio = AudioSegment.from_file(in_path, format="aiff")
             audio.export(out_path, format="wav", parameters=["-acodec", "pcm_s16le"])
-            print(f"✅ Converted: {fname} → {os.path.basename(out_path)}")
+            print(f" Converted: {fname} → {os.path.basename(out_path)}")
         except Exception as e:
-            print(f"❌ Failed to convert {fname}: {e}")
+            print(f" Failed to convert {fname}: {e}")
 
 # Pass 2: Rename .wavf → .wav if needed
 for fname in os.listdir(INPUT_DIR):
@@ -61,7 +61,7 @@ for fname in os.listdir(INPUT_DIR):
         old_path = os.path.join(INPUT_DIR, fname)
         new_path = os.path.join(INPUT_DIR, fname.replace(".wavf", ".wav"))
         os.rename(old_path, new_path)
-        print(f"🔁 Renamed: {fname} → {os.path.basename(new_path)}")
+        print(f" Renamed: {fname} → {os.path.basename(new_path)}")
 
 # Pass 3: Detect onsets and split into notes
 print("\n🎼 Splitting into notes...")
@@ -69,7 +69,7 @@ for fname in os.listdir(INPUT_DIR):
     if fname.lower().endswith(".wav") and "sul" in fname:
         parts = fname.split('.')
         if len(parts) < 4:
-            print(f"⚠️ Skipping malformed filename: {fname}")
+            print(f" Skipping malformed filename: {fname}")
             continue
         technique = parts[2]
         note_range = parts[3]
@@ -78,13 +78,13 @@ for fname in os.listdir(INPUT_DIR):
 
         path = os.path.join(INPUT_DIR, fname)
         audio = AudioSegment.from_file(path, format="wav")
-        print(f"\n📁 Processing {fname} ({len(audio)} ms, {audio.frame_rate} Hz)")
+        print(f"\n Processing {fname} ({len(audio)} ms, {audio.frame_rate} Hz)")
 
         onsets = detect_onsets(audio)
-        print(f"🎯 Detected {len(onsets)} onsets (Expected: {len(note_list)})")
+        print(f" Detected {len(onsets)} onsets (Expected: {len(note_list)})")
 
         if not onsets:
-            print(f"⚠️ No onsets found in {fname} — skipping")
+            print(f" No onsets found in {fname} — skipping")
             continue
 
         for i in range(min(len(note_list), len(onsets))):
@@ -93,6 +93,6 @@ for fname in os.listdir(INPUT_DIR):
             chunk = audio[start:end]
             out_name = f"{technique}_{note_list[i]}.wav"
             chunk.export(os.path.join(INPUT_DIR, out_name), format="wav", parameters=["-acodec", "pcm_s16le"])
-            print(f"✅ Saved: {out_name} ({end - start} ms)")
+            print(f" Saved: {out_name} ({end - start} ms)")
 
-print("\n✅ All done!")
+print("\n All done!")
