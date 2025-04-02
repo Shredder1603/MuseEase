@@ -1,5 +1,6 @@
 import sys
 import os
+from paths import resource_path
 import numpy as np
 import sounddevice as sd
 import scipy
@@ -17,6 +18,7 @@ class SoundGenerator:
         self.current_instrument = current_instrument
         self.notes = self.instruments.get(self.current_instrument, {})
         self.samplerate = 44100
+        self.available_instruments = []
         self.sample_filepaths = {}
         if not self.instruments:
             self.load_all_instruments()
@@ -29,7 +31,7 @@ class SoundGenerator:
         self.stream.start()
 
     def load_all_instruments(self):
-        instruments_dir = os.path.join(os.getcwd(), "Instruments")
+        instruments_dir = resource_path("Instruments") 
         if not os.path.exists(instruments_dir):
             print(f"Instruments directory {instruments_dir} not found.")
             return
@@ -182,7 +184,7 @@ class NotesWindow(QMainWindow):
     
     def __init__(self, sound_generator=None, current_instrument="Piano"):
         super().__init__()
-        ui_path = os.path.join(os.path.dirname(__file__), 'UI/Notes.ui')
+        ui_path = resource_path('MVP/View/UI/Notes.ui')
         uic.loadUi(ui_path, self)
         
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)

@@ -3,14 +3,12 @@ from PyQt6.QtWidgets import QDialog, QWidget, QMessageBox, QListView
 from PyQt6 import uic
 from PyQt6.QtCore import QStringListModel
 import os
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+from paths import resource_path  
 
 class Saved_Projects(QDialog, QWidget):
     def __init__(self, presenter=None):
         super().__init__()
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        ui_path = os.path.join(project_root, 'MVP', 'View', 'UI', 'SavedProjects.ui')
+        ui_path = resource_path('MVP/View/UI/SavedProjects.ui') 
         print(f"UI Path: {ui_path}")  # Debug print
         if not os.path.exists(ui_path):
             raise FileNotFoundError(f"UI file not found at: {ui_path}")
@@ -51,7 +49,7 @@ class Saved_Projects(QDialog, QWidget):
             return
         
         selected_file = selected_indexes[0].data()
-        project_path = os.path.join(project_root, "Saves", f"{selected_file}.muse")
+        project_path = resource_path(f"Saves/{selected_file}.muse")  
         QMessageBox.information(self, "Open Project", f"Opening project: {selected_file}")
         
         if self.presenter:
@@ -77,7 +75,7 @@ class Saved_Projects(QDialog, QWidget):
             return
         
         selected_file = str(selected_indexes[0].data()) + ".muse"
-        folder_path = os.path.join(project_root, "Saves")
+        folder_path = resource_path("Saves") 
         file_path = os.path.join(folder_path, selected_file)
 
         confirm = QMessageBox.question(self, "Delete Project", f"Are you sure you want to delete {selected_file}?",

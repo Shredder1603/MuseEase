@@ -112,7 +112,10 @@ class Presenter:
         self.new_project.load_project(project_path)
         
         self.stacked_widget.setCurrentWidget(self.new_project)
-            
+        
+    def show_main_menu(self):
+        self.main_menu.show()
+        
     def on_exit_to_menu_requested(self):
         self.stacked_widget.setCurrentWidget(self.main_menu)
         

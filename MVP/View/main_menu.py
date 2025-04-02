@@ -2,16 +2,15 @@
 from PyQt6.QtWidgets import QMainWindow, QWidget, QLabel, QApplication
 from PyQt6 import uic
 from PyQt6.QtGui import QPixmap
+from paths import resource_path 
 import os
 
 class Main_Menu(QMainWindow, QWidget):
     def __init__(self):
         super().__init__()
 
-        # Calculate the project root (three levels up from MVP/View/)
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         # Construct the path to the UI file
-        ui_path = os.path.join(project_root, 'MVP', 'View', 'UI', 'MainMenu.ui')
+        ui_path = resource_path('MVP/View/UI/MainMenu.ui')  
         print(f"UI Path: {ui_path}")  # Debug print to confirm the path
         if not os.path.exists(ui_path):
             raise FileNotFoundError(f"UI file not found at: {ui_path}")
@@ -46,7 +45,7 @@ class Main_Menu(QMainWindow, QWidget):
         self.showFullScreen()
 
         # Background setup
-        bg_image_path = os.path.join(project_root, 'MVP', 'View', 'UI', 'background.jpg')
+        bg_image_path = resource_path('MVP/View/UI/background.jpg')  
         print(f"Background Image Path: {bg_image_path}")  # Debug print
 
         # Check if the background image file exists

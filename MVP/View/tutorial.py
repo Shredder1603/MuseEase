@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import QDialog, QWidget, QPushButton
 from PyQt6 import uic
 from PyQt6.QtGui import QPixmap
 import os
+from paths import resource_path  # ✅ NEW
 
 class Tutorial(QDialog, QWidget):
     def __init__(self, presenter=None):
@@ -12,8 +13,7 @@ class Tutorial(QDialog, QWidget):
         self.presenter = presenter
         
         # Load the UI from the .ui file
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        ui_path = os.path.join(project_root, 'MVP', 'View', 'UI', 'Tutorial.ui')
+        ui_path = resource_path('MVP/View/UI/Tutorial.ui')
         print(f"UI Path: {ui_path}")  # Debug print
         if not os.path.exists(ui_path):
             raise FileNotFoundError(f"UI file not found at: {ui_path}")
@@ -22,7 +22,7 @@ class Tutorial(QDialog, QWidget):
         except Exception as e:
             raise RuntimeError(f"Failed to load UI file {ui_path}: {str(e)}")
         
-        icons_dir = os.path.join(project_root, 'MVP', 'View', 'Icons', 'Tutorial_Icons')
+        icons_dir = resource_path('MVP/View/Icons/Tutorial_Icons')
         forward_path = os.path.join(icons_dir, 'FastForward.png')
         forward_png = QPixmap(forward_path)
         self.forward.setPixmap(forward_png)

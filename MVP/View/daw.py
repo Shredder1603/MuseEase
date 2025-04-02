@@ -14,8 +14,7 @@ import subprocess
 import tempfile
 import numpy as np
 import os
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from paths import resource_path
 
 class CustomGraphicsScene(QGraphicsScene):
     def __init__(self, parent=None):
@@ -64,8 +63,7 @@ class DAW(QMainWindow, QWidget):
     def __init__(self, presenter=None):
         super().__init__()
 
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        ui_path = os.path.join(project_root, "MVP", "View", "UI", "DAW.ui")
+        ui_path = resource_path("MVP/View/UI/DAW.ui")
         print(f"UI Path: {ui_path}")
         uic.loadUi(ui_path, self)
 
@@ -1184,7 +1182,7 @@ class DAW(QMainWindow, QWidget):
                 os.remove(temp_wav.name)
 
     def save_project(self):
-        saved_path = os.path.join(project_root, "Saves")
+        saved_path = resource_path("Saves")
         saved_files = os.listdir(saved_path)
         text, okPressed = QInputDialog.getText(self, "Save Project", "Project Name:")
         if okPressed:
