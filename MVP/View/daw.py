@@ -192,13 +192,13 @@ class DAW(QMainWindow, QWidget):
         self.countoff_beats = 0  # Track the number of countoff beats
         self.countoff_active = False  # Flag to indicate if countoff is in progress
 
-        icons_dir = os.path.join(os.path.dirname(__file__), "Icons")
+        icons_dir = resource_path("Icons")
         print("ICONS: " + icons_dir)
         self.play_icon_path = os.path.join(icons_dir, "Play.png")
         self.pause_icon_path = os.path.join(icons_dir, "Pause.png")
         self.set_button_icons()
 
-        self.autosave_file = "./Saves/autosave.muse"
+        self.autosave_file = resource_path("Saves/autosave.muse")
         self.note_order = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
 
         self.presenter = presenter

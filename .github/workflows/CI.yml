@@ -54,11 +54,11 @@ jobs:
 
       - name: Build Executable with PyInstaller
         run: |
-          pyinstaller --noconfirm --onefile ^
-          --add-data "MVP;MVP" ^
-          --add-data "Instruments;Instruments" ^
-          --add-data "Icons;Icons" ^
-          --add-data "Saves;Saves" ^
+          pyinstaller --noconfirm --onefile \
+          --add-data "MVP;MVP" \
+          --add-data "Instruments;Instruments" \
+          --add-data "Icons;Icons" \
+          --add-data "Saves;Saves" \
           --windowed --name MuseEase --hidden-import PyQt6 main.py
 
       - name: Upload Build Artifact
