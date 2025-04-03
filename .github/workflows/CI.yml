@@ -54,7 +54,7 @@ jobs:
 
       - name: Build Executable with PyInstaller
         run: |
-          pyinstaller --noconfirm --onefile --add-data "MVP:MVP" --windowed --name MuseEase --hidden-import PyQt6 main.py
+          pyinstaller --noconfirm --onefile --add-data "MVP;MVP" --windowed --name MuseEase --hidden-import PyQt6 main.py
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
