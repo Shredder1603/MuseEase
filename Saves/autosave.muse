@@ -1,0 +1,85 @@
+{
+    "tempo": 120,
+    "time_signature": "4/4",
+    "containers": [
+        {
+            "track": 0,
+            "start_x": 0.0,
+            "notes": [
+                {
+                    "timestamp": 0.28482723236083984,
+                    "duration": 0.08405113220214844,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 0.44664955139160156,
+                    "duration": 0.2811884880065918,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 0.8208565711975098,
+                    "duration": 0.14688873291015625,
+                    "note_name": "E4"
+                },
+                {
+                    "timestamp": 0.9854447841644287,
+                    "duration": 0.17319941520690918,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 1.056922435760498,
+                    "duration": 0.1777660846710205,
+                    "note_name": "D4"
+                },
+                {
+                    "timestamp": 1.1524362564086914,
+                    "duration": 0.14932727813720703,
+                    "note_name": "E4"
+                },
+                {
+                    "timestamp": 1.2574684619903564,
+                    "duration": 0.19975614547729492,
+                    "note_name": "F4"
+                }
+            ],
+            "instrument": "Guitar"
+        },
+        {
+            "track": 1,
+            "start_x": 187.0,
+            "notes": [
+                {
+                    "timestamp": 0.35111236572265625,
+                    "duration": 0.1397380828857422,
+                    "note_name": "G4"
+                },
+                {
+                    "timestamp": 0.44660091400146484,
+                    "duration": 0.13562750816345215,
+                    "note_name": "E4"
+                },
+                {
+                    "timestamp": 0.5597167015075684,
+                    "duration": 0.2345564365386963,
+                    "note_name": "C4"
+                },
+                {
+                    "timestamp": 0.7314321994781494,
+                    "duration": 0.17696523666381836,
+                    "note_name": "D4"
+                },
+                {
+                    "timestamp": 0.8588278293609619,
+                    "duration": 0.15985488891601562,
+                    "note_name": "E4"
+                },
+                {
+                    "timestamp": 0.9528288841247559,
+                    "duration": 0.424222469329834,
+                    "note_name": "F4"
+                }
+            ],
+            "instrument": "Guitar"
+        }
+    ]
+}
