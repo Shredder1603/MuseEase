@@ -192,7 +192,7 @@ class DAW(QMainWindow, QWidget):
         self.countoff_beats = 0  # Track the number of countoff beats
         self.countoff_active = False  # Flag to indicate if countoff is in progress
 
-        icons_dir = resource_path("Icons")
+        icons_dir = resource_path("MVP/View/Icons")
         print("ICONS: " + icons_dir)
         self.play_icon_path = os.path.join(icons_dir, "Play.png")
         self.pause_icon_path = os.path.join(icons_dir, "Pause.png")
