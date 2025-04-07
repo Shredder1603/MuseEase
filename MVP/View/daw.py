@@ -403,7 +403,7 @@ class DAW(QMainWindow, QWidget):
 
         print(f"Creating container at start_x={start_x}, y_position={y_position}")
 
-        self.current_container = DraggableContainer(self.track_height, start_x, 0, 0, self.track_height)
+        self.current_container = DraggableContainer(self.track_height, (int(self.track_scene.width()), int(self.track_scene.height())), start_x, 0, 0, self.track_height)
         self.current_container.setRect(0, 0, 50, self.track_height)  # Minimum width
         self.current_container.setPos(start_x, y_position)
         self.current_container.current_track = track_index
