@@ -642,7 +642,7 @@ class DAW(QMainWindow, QWidget):
         self.playhead.setVisible(True)
 
         for container_data in project_data["containers"]:
-            container = DraggableContainer(self.track_height, 0, 0, 0, self.track_height)
+            container = DraggableContainer(self.track_height, (int(self.track_scene.width()), int(self.track_scene.height())), 0, 0, 0, self.track_height)
             container.setBrush(QBrush(QColor(173, 216, 230, 100)))
             container.setPen(QPen(QColor(70, 130, 180, 200), 2))
             container.setZValue(5)
