@@ -367,6 +367,19 @@
       </layout>
      </widget>
     </item>
+    <item row="2" column="1" alignment="Qt::AlignBottom">
+     <widget class="QWidget" name="eqContainer" native="true">
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QLabel" name="placeHolder">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -375,7 +388,7 @@
      <x>0</x>
      <y>0</y>
      <width>1440</width>
-     <height>24</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="file">

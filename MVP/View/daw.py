@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QLineEdit, QHBoxLayout, QMessageBox, QFileDialog, QGraphicsScene,
-                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog)
+                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog, QPushButton, QVBoxLayout, QFrame)
 from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction
 from PyQt6 import uic
 from PyQt6.QtCore import Qt, QTimer, QRectF, QMutex
@@ -15,6 +15,12 @@ import tempfile
 import numpy as np
 import os
 from paths import resource_path
+from .equalizerView import EqualizerView
+from ..Model.equalizerModel import EqualizerModel 
+from MVP.Model.biquadFilter import BiquadFilter
+from scipy.signal import butter, lfilter
+import sys
+import traceback
 
 class CustomGraphicsScene(QGraphicsScene):
     def __init__(self, parent=None):
@@ -162,7 +168,8 @@ class DAW(QMainWindow, QWidget):
         self.playback_stream = sd.OutputStream(
             samplerate=self.sound.samplerate,
             channels=1,
-            callback=self.playback_audio_callback,
+            blocksize=1024,
+            callback=self.playback_audio_callback
         )
 
         self.note_playback_timer = QTimer()
@@ -213,6 +220,37 @@ class DAW(QMainWindow, QWidget):
         self.save_project_action.triggered.connect(self.save_project)
         
         self.instruments = {}
+        
+                # --- EQ Integration ---
+        self.equalizer_model = EqualizerModel()
+        self.equalizer_view = EqualizerView()
+
+        self.equalizer_frame = QFrame(self)
+        self.equalizer_frame.setLayout(QVBoxLayout())
+        self.equalizer_frame.layout().addWidget(self.equalizer_view)
+        self.equalizer_frame.setVisible(False)
+        self.equalizer_frame.setFixedHeight(350)
+        self.equalizer_frame.setStyleSheet("background-color: white; border-top: 2px solid #ccc;")
+
+
+        self.arrow_button = QPushButton("▲ EQ")
+        self.arrow_button.clicked.connect(self.toggle_equalizer_view)
+
+        # Inject into container from UI file
+        self.eqContainer.layout().addWidget(self.equalizer_frame)
+        self.eqContainer.layout().addWidget(self.arrow_button)
+
+        # Signal connections
+        self.equalizer_view.gain_changed.connect(self.equalizer_model.set_gain)
+        self.equalizer_view.lowpass_freq_changed.connect(self.equalizer_model.set_lowpass_freq)
+        self.equalizer_view.highpass_freq_changed.connect(self.equalizer_model.set_highpass_freq)
+        self.equalizer_view.reverb_changed.connect(self.equalizer_model.set_reverb)
+        self.equalizer_model.gain_updated.connect(self.equalizer_view.set_gain)
+        self.equalizer_model.lowpass_freq_updated.connect(self.equalizer_view.set_lowpass_freq)
+        self.equalizer_model.highpass_freq_updated.connect(self.equalizer_view.set_highpass_freq)
+        self.equalizer_model.reverb_updated.connect(self.equalizer_view.set_reverb)
+        
+        self.eq_filters = None
 
     def keyPressEvent(self, event):
         '''
@@ -265,49 +303,54 @@ class DAW(QMainWindow, QWidget):
         '''
         Redraws track backgrounds, measure lines, and labels
         '''
-        # Clear existing track background group if it exists
+        # Prevent redundant signal firing
+        self.track_scene.blockSignals(True)
+
         if self.track_background_group is not None:
             self.track_scene.removeItem(self.track_background_group)
+
         self.track_background_group = QGraphicsItemGroup()
         self.track_scene.addItem(self.track_background_group)
-        # Modified: Set a higher zValue for track_background_group to ensure it draws on top
         self.track_background_group.setZValue(1)
+
         view_width = max(self.trackView.width(), self.current_x + 2000)
         track_brush = QBrush(QColor(45, 45, 45))
         track_pen = QPen(QColor(80, 80, 80))
         self.track_rects = []
-        
-        # Add tracks as top-level items (not in the group)
+
         for i in range(5):
             track = QGraphicsRectItem(0, i * self.track_height, view_width, self.track_height)
             track.setBrush(track_brush)
             track.setPen(track_pen)
-            track.setData(0, i + 1)  # Set data to 1, 2, 3, 4, 5
+            track.setData(0, i + 1)
             track.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable, True)
             track.setAcceptHoverEvents(True)
-            self.track_scene.addItem(track)  # Add directly to scene, not group
+            self.track_scene.addItem(track)
             self.track_rects.append(track)
-        
-        # Add measure lines and labels to the group
+
         measure_pen = QPen(QColor(100, 100, 100), 2, Qt.PenStyle.SolidLine)
         beat_tick_pen = QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DotLine)
         measures = int(view_width / self.measure_width) + 2
+
         for m in range(measures):
             x_pos = m * self.measure_width
             self.track_background_group.addToGroup(
                 self.track_scene.addLine(x_pos, 0, x_pos, 5 * self.track_height, measure_pen))
             for b in range(1, 4):
                 beat_x = x_pos + b * self.base_note_width
-                # Modified: Add beat tick marks to track_background_group instead of directly to the scene
                 self.track_background_group.addToGroup(
                     self.track_scene.addLine(beat_x, 0, beat_x, 5 * self.track_height, beat_tick_pen))
             text = self.track_scene.addText(str(m + 1))
             text.setPos(x_pos + 10, 5)
             text.setDefaultTextColor(QColor(150, 150, 150))
             self.track_background_group.addToGroup(text)
-        
+
         self.track_scene.setSceneRect(0, 0, view_width, 5 * self.track_height)
+
+        # Re-enable signals and update UI feedback
+        self.track_scene.blockSignals(False)
         self.update_track_selection_feedback()
+
 
     def update_time_display(self):
         '''
@@ -703,14 +746,16 @@ class DAW(QMainWindow, QWidget):
             self.paused_position = self.playhead.line().x1()
             self.playback_timer.stop()
             self.note_playback_timer.stop()
-            self.playback_stream.stop()
+            try:
+                self.playback_stream.stop()
+            except Exception as e:
+                print(f"Error stopping playback stream: {e}")
             self.active_playback_notes.clear()
             self.scheduled_notes.clear()
         else:
             self.playing = True
             self.paused = False
             self.paused_position = None
-            # Start playback from the current playhead position
             current_x = self.playhead.line().x1()
             pixels_per_second = self.base_note_width * self.bpm / 60
             elapsed_time = current_x / pixels_per_second
@@ -718,8 +763,9 @@ class DAW(QMainWindow, QWidget):
             self.playhead.setVisible(True)
             self.playback_timer.start()
             self.start_audio_playback()
+            self.playback_stream.stop()  # Reset stream
+            self.playback_stream.start()  # Restart to apply EQ
             self.note_playback_timer.start()
-            self.playback_stream.start()
         self.set_button_icons()
         if not self.playing and not self.paused:
             self.playhead.setLine(0, 0, 0, 5 * self.track_height)
@@ -767,26 +813,42 @@ class DAW(QMainWindow, QWidget):
                     print(f"Scheduled note {note['note_name']} at relative_start_time={relative_start_time}")
 
     def check_note_playback(self):
-        '''
-        Checks and triggers the scheduled notes during playback
-        '''
         if not self.playing or self.paused:
             return
         current_time = time.perf_counter() - self.playback_start_time
         notes_to_remove = []
+
         for i, note in enumerate(self.scheduled_notes):
             start_time = note['start_time']
             end_time = start_time + note['duration']
             name = note['name']
             instrument = note['instrument']
+
             if start_time <= current_time < end_time:
                 if name not in self.active_playback_notes:
                     if name in self.sound.instruments[instrument]:
                         data, samplerate = self.sound.instruments[instrument][name]
+
                         self.mutex.lock()
-                        self.active_playback_notes[name] = {"data": data, "play_pos": 0, "loop": False}
+                        self.active_playback_notes[name] = {
+                            "data": data,
+                            "play_pos": 0,
+                            "loop": False
+                        }
                         self.mutex.unlock()
-                        self.sound.note_on(name, instrument=instrument)
+
+                        print(f"Activated {name} at {current_time}")
+                        for band in self.equalizer_model.bands:
+                            band_settings = self.equalizer_model.settings[band]
+                            gain = band_settings["gain"]
+                            low = band_settings["highpass_freq"]
+                            high = band_settings["lowpass_freq"]
+                            print(f"[EQ DEBUG] {band}: Gain={gain} dB | HP={low} Hz | LP={high} Hz")
+                            if low < high and abs(gain) > 0.1:
+                                print(f"[EQ APPLY] Applying bandpass filter: {low}-{high} Hz with gain {gain} dB")
+                            elif low >= high:
+                                print(f"[EQ SKIP] Invalid filter: highpass ({low}) >= lowpass ({high})")
+
             elif current_time >= end_time:
                 self.mutex.lock()
                 if name in self.active_playback_notes:
@@ -794,9 +856,11 @@ class DAW(QMainWindow, QWidget):
                 self.mutex.unlock()
                 self.sound.note_off(name, instrument=instrument)
                 notes_to_remove.append(i)
+                print(f"Removed {name} at {current_time}")
 
         for i in sorted(notes_to_remove, reverse=True):
             self.scheduled_notes.pop(i)
+
 
     def note_on(self, note, loop=False):
         '''
@@ -806,7 +870,7 @@ class DAW(QMainWindow, QWidget):
         if note not in self.active_playback_notes:
             data, samplerate = self.sound.notes[note]
             self.mutex.lock()
-            self.active_playback_notes[note] = {"data": data, "play_pos": 0, "loop": loop}
+            #self.active_playback_notes[note] = {"data": data, "play_pos": 0, "loop": loop}
             self.mutex.unlock()
 
     def note_off(self, note):
@@ -819,6 +883,68 @@ class DAW(QMainWindow, QWidget):
             del self.active_playback_notes[note]
         self.mutex.unlock()
 
+    def toggle_equalizer_view(self):
+        is_open = self.equalizer_frame.isVisible()
+        self.equalizer_frame.setVisible(not is_open)
+        self.arrow_button.setText("▼ EQ" if is_open else "▲ EQ")
+    
+    def apply_eq_filter(self, data, samplerate):
+        output = np.zeros_like(data)
+
+        for band in self.equalizer_model.bands:
+            gain_db = self.equalizer_model.settings[band]["gain"]
+            if abs(gain_db) < 0.1:
+                continue
+
+            hp = self.equalizer_model.settings[band]["highpass_freq"]
+            lp = self.equalizer_model.settings[band]["lowpass_freq"]
+            center_freq = (hp + lp) / 2
+            bandwidth = lp - hp
+
+            if bandwidth < 50 or hp >= lp:
+                print(f"[EQ SKIP] Invalid {band} band: HP={hp}, LP={lp}")
+                continue
+
+            # Use peak filter for mid, and shelves for low/high
+            if band.startswith("Mid"):
+                biquad = BiquadFilter.create_peaking_eq(samplerate, center_freq, gain_db, Q=bandwidth/center_freq)
+            elif band.startswith("Low"):
+                biquad = BiquadFilter.create_low_shelf(samplerate, center_freq, gain_db, Q=0.707)
+            elif band.startswith("High"):
+                biquad = BiquadFilter.create_high_shelf(samplerate, center_freq, gain_db, Q=0.707)
+            else:
+                continue
+
+            band_processed = np.array([biquad.process(x) for x in data])
+            output += band_processed
+
+        # Normalize or soft clip
+        output = np.tanh(output)
+
+        return output
+
+    
+    def apply_equalizer(self, chunk, sample_rate):
+        
+        if self.eq_filters is None:
+            self.eq_filters = self.equalizer_model.get_filters(sample_rate)
+            
+        filters = self.equalizer_model.get_filters(sample_rate)
+        filtered = np.zeros_like(chunk)
+
+        for i in range(len(chunk)):
+            x = chunk[i]
+            if abs(x) < 1e-20:
+                x = 0.0
+
+            for f_idx, f in enumerate(filters):
+                x = f.process(x)
+                
+            filtered[i] = x
+
+        return filtered
+
+    
     def playback_audio_callback(self, outdata, frames, time_info, status):
         '''
         Generates audio for active notes
@@ -830,29 +956,49 @@ class DAW(QMainWindow, QWidget):
                 return
 
             mixed = np.zeros(frames)
-
             to_remove = []
-            for note, note_data in self.active_playback_notes.items():
-                data, play_pos, loop = note_data["data"], note_data["play_pos"], note_data["loop"]
-                chunk = data[play_pos: play_pos + frames]
 
-                mixed[:len(chunk)] += chunk
-                play_pos += frames
+            for note, note_data in self.active_playback_notes.items():
+                data, play_pos, loop = note_data["data"], note_data["play_pos"], note_data.get("loop", False)
 
                 if play_pos >= len(data):
                     if loop:
                         play_pos = 0
                     else:
                         to_remove.append(note)
+                        continue
 
-                self.active_playback_notes[note]["play_pos"] = play_pos
+                chunk = data[play_pos: play_pos + frames]
+                if len(chunk) < frames:
+                    chunk = np.pad(chunk, (0, frames - len(chunk)), mode='constant')
+
+                fade_len = min(32, len(chunk))
+                fade_in = np.linspace(0.0, 1.0, fade_len)
+                fade_out = np.linspace(1.0, 0.0, fade_len)
+                if play_pos == 0:
+                    chunk[:fade_len] *= fade_in
+                if play_pos + frames >= len(data):
+                    chunk[-fade_len:] *= fade_out
+
+                print(f"[DEBUG] Raw chunk max before EQ: {np.max(np.abs(chunk)):.6f}")
+                chunk = self.apply_equalizer(chunk, self.sample_rate)
+                print(f"[DEBUG] Chunk max after EQ: {np.max(np.abs(chunk)):.6f}")
+                
+                mixed[:len(chunk)] += chunk
+                self.active_playback_notes[note]["play_pos"] = play_pos + frames
 
             for note in to_remove:
                 del self.active_playback_notes[note]
 
-            mixed = np.clip(mixed, -1, 1)
-            outdata[:len(mixed)] = mixed.reshape(-1, 1)
-            outdata[len(mixed):] = 0
+            if np.any(np.isnan(mixed)):
+                mixed = np.nan_to_num(mixed)
+
+            # Optional: apply tanh for soft clipping
+            mixed = np.tanh(mixed)
+            print(f"[DEBUG] Final max amplitude: {np.max(np.abs(mixed)):.6f}, dtype: {mixed.dtype}, shape: {mixed.shape}")
+
+            outdata[:] = mixed.reshape(-1, 1)
+
         finally:
             self.mutex.unlock()
 
@@ -915,7 +1061,10 @@ class DAW(QMainWindow, QWidget):
         self.paused_position = None
         self.playback_timer.stop()
         self.note_playback_timer.stop()
-        self.playback_stream.stop()
+        try:
+            self.playback_stream.stop()
+        except Exception as e:
+            print(f"Error stopping playback stream in stop_playback_internal: {e}")
         self.active_playback_notes.clear()
         self.scheduled_notes.clear()
         self.playhead.setLine(0, 0, 0, 5 * self.track_height)
@@ -1213,6 +1362,10 @@ class DAW(QMainWindow, QWidget):
         self.autosave()
         if self.notes_window:
             self.notes_window.close()
-        self.playback_stream.stop()
-        self.playback_stream.close()
+        try:
+            self.playback_stream.stop()
+            self.playback_stream.close()
+        except Exception as e:
+            print(f"Error closing playback stream: {str(e)}")
+            traceback.print_exc()
         event.accept()
