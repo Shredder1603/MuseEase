@@ -28,9 +28,19 @@ class CustomGraphicsScene(QGraphicsScene):
         self.daw = None  # Reference to the DAW instance
 
     def set_daw(self, daw):
+        """
+        Sets the reference to the DAW instance.
+        Allows the scene to interact with DAW properties and methods.
+        """
         self.daw = daw
 
     def mousePressEvent(self, event):
+        
+        """
+        Handles mouse press events in the scene.
+        Moves the playhead to the clicked position unless a DraggableContainer is clicked,
+        updates playback timing, and ensures the track view follows the playhead.
+        """
         # Map the click position to scene coordinates
         pos = event.scenePos()
         x_pos = pos.x()
@@ -813,6 +823,10 @@ class DAW(QMainWindow, QWidget):
                     print(f"Scheduled note {note['note_name']} at relative_start_time={relative_start_time}")
 
     def check_note_playback(self):
+        """
+        Checks and updates the playback of scheduled notes.
+        Activates or removes notes based on the current playback time, applying equalizer settings.
+        """
         if not self.playing or self.paused:
             return
         current_time = time.perf_counter() - self.playback_start_time
@@ -884,11 +898,19 @@ class DAW(QMainWindow, QWidget):
         self.mutex.unlock()
 
     def toggle_equalizer_view(self):
+        """
+        Toggles the visibility of the equalizer view.
+        Updates the arrow button text to reflect the current state (open or closed).
+        """
         is_open = self.equalizer_frame.isVisible()
         self.equalizer_frame.setVisible(not is_open)
         self.arrow_button.setText("▼ EQ" if is_open else "▲ EQ")
     
     def apply_eq_filter(self, data, samplerate):
+        """
+        Applies equalizer filters to audio data for a given sample rate.
+        Processes each band (low, mid, high) with appropriate filter types and settings.
+        """
         output = np.zeros_like(data)
 
         for band in self.equalizer_model.bands:
@@ -918,17 +940,17 @@ class DAW(QMainWindow, QWidget):
             band_processed = np.array([biquad.process(x) for x in data])
             output += band_processed
 
-        # Normalize or soft clip
-        output = np.tanh(output)
-
         return output
 
     
     def apply_equalizer(self, chunk, sample_rate):
-        
+        """
+        Applies the equalizer filters to an audio chunk.
+        Processes the chunk through all configured filters and returns the filtered result.
+        """
         if self.eq_filters is None:
             self.eq_filters = self.equalizer_model.get_filters(sample_rate)
-            
+
         filters = self.equalizer_model.get_filters(sample_rate)
         filtered = np.zeros_like(chunk)
 
@@ -939,10 +961,11 @@ class DAW(QMainWindow, QWidget):
 
             for f_idx, f in enumerate(filters):
                 x = f.process(x)
-                
+
             filtered[i] = x
 
         return filtered
+
 
     
     def playback_audio_callback(self, outdata, frames, time_info, status):
@@ -980,9 +1003,9 @@ class DAW(QMainWindow, QWidget):
                 if play_pos + frames >= len(data):
                     chunk[-fade_len:] *= fade_out
 
-                print(f"[DEBUG] Raw chunk max before EQ: {np.max(np.abs(chunk)):.6f}")
+                #print(f"[DEBUG] Raw chunk max before EQ: {np.max(np.abs(chunk)):.6f}")
                 chunk = self.apply_equalizer(chunk, self.sample_rate)
-                print(f"[DEBUG] Chunk max after EQ: {np.max(np.abs(chunk)):.6f}")
+                #print(f"[DEBUG] Chunk max after EQ: {np.max(np.abs(chunk)):.6f}")
                 
                 mixed[:len(chunk)] += chunk
                 self.active_playback_notes[note]["play_pos"] = play_pos + frames
@@ -993,9 +1016,10 @@ class DAW(QMainWindow, QWidget):
             if np.any(np.isnan(mixed)):
                 mixed = np.nan_to_num(mixed)
 
-            # Optional: apply tanh for soft clipping
-            mixed = np.tanh(mixed)
-            print(f"[DEBUG] Final max amplitude: {np.max(np.abs(mixed)):.6f}, dtype: {mixed.dtype}, shape: {mixed.shape}")
+            max_val = np.max(np.abs(mixed))
+            if max_val > 1.0:
+                mixed = mixed / max_val
+            #print(f"[DEBUG] Final max amplitude: {np.max(np.abs(mixed)):.6f}, dtype: {mixed.dtype}, shape: {mixed.shape}")
 
             outdata[:] = mixed.reshape(-1, 1)
 
@@ -1331,6 +1355,9 @@ class DAW(QMainWindow, QWidget):
                 os.remove(temp_wav.name)
 
     def save_project(self):
+        '''
+        Saves project to chosen file name to Saves directory
+        '''
         saved_path = resource_path("Saves")
         saved_files = os.listdir(saved_path)
         text, okPressed = QInputDialog.getText(self, "Save Project", "Project Name:")
