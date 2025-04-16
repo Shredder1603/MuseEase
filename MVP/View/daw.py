@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QLineEdit, QHBoxLayout, QMessageBox, QFileDialog, QGraphicsScene,
-                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog, QPushButton, QVBoxLayout, QFrame)
+                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog, QPushButton, QVBoxLayout, QFrame, QLabel)
 from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction
 from PyQt6 import uic
-from PyQt6.QtCore import Qt, QTimer, QRectF, QMutex
+from PyQt6.QtCore import Qt, QTimer, QRectF, QMutex, QPoint
 from .Notes import NotesWindow, SoundGenerator
 from .draggable_container import DraggableContainer
 import sounddevice as sd
@@ -262,6 +262,12 @@ class DAW(QMainWindow, QWidget):
         
         self.eq_filters = None
 
+        
+        if (self.presenter.tutorial_mode):
+            label = QLabel("I", self)
+            label.show()
+            #QMessageBox.warning(self, "no", "yes")
+            
     def keyPressEvent(self, event):
         '''
         Handle key presses, including Delete to remove selected track.
