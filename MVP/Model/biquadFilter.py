@@ -59,8 +59,8 @@ class BiquadFilter:
         self.b2 = b2 / a0
         self.a1 = a1 / a0
         self.a2 = a2 / a0
-        print(f"[{self.filter_type.upper()}] fs={self.fs}, f0={self.f0}, gain={self.gain_db}dB, Q={self.Q}")
-        print(f"   Coefficients: b0={self.b0:.6f}, b1={self.b1:.6f}, b2={self.b2:.6f}, a1={self.a1:.6f}, a2={self.a2:.6f}")
+        #print(f"[{self.filter_type.upper()}] fs={self.fs}, f0={self.f0}, gain={self.gain_db}dB, Q={self.Q}")
+        #print(f"   Coefficients: b0={self.b0:.6f}, b1={self.b1:.6f}, b2={self.b2:.6f}, a1={self.a1:.6f}, a2={self.a2:.6f}")
 
     def process(self, x):
         y = self.b0 * x + self.b1 * self._x1 + self.b2 * self._x2 - self.a1 * self._y1 - self.a2 * self._y2

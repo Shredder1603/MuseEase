@@ -51,7 +51,7 @@ class EqualizerView(QWidget):
             # Gain
             gain_label = QLabel("Gain (dB): 0")
             gain_slider = QSlider(Qt.Orientation.Horizontal)
-            gain_slider.setRange(-6, 6)
+            gain_slider.setRange(-12, 12)
             gain_slider.setValue(0)
             gain_slider.valueChanged.connect(lambda value, b=band, l=gain_label: self.update_slider_label(b, 'gain', value, l))
             gain_slider.valueChanged.connect(lambda value, b=band: self.gain_changed.emit(b, value))
