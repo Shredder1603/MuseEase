@@ -134,7 +134,15 @@ class DAW(QMainWindow, QWidget):
             "QLineEdit {color: #C8C8C8; background-color: #333333; padding: 5px; border: none; qproperty-alignment: AlignCenter;} QLineEdit:focus {background-color: white; border: 1px solid gray;}")
         self.time_edit.setStyleSheet(
             "QLineEdit {color: #C8C8C8; background-color: #333333; padding: 5px; border: none; qproperty-alignment: AlignCenter;} QLineEdit:focus {background-color: white; border: 1px solid gray;}")
-        self.timeView.setStyleSheet("background-color: #333333; border: 1px solid #555555;")
+        self.timeView.setStyleSheet("""
+            background: qlineargradient(
+                x1:0, y1:0, x2:1, y2:0,
+                stop:0 rgba(80, 80, 80, 200),
+                stop:1 rgba(110, 110, 110, 200)
+            );
+            border: 1px solid rgba(160, 160, 160, 200);
+            border-radius: 10px;
+        """)
 
         self.measure_edit.editingFinished.connect(self.update_measure)
         self.tempo_edit.editingFinished.connect(self.update_tempo)
@@ -247,6 +255,34 @@ class DAW(QMainWindow, QWidget):
 
 
         self.arrow_button = QPushButton("▲ EQ")
+        self.arrow_button.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(
+                    spread:pad,
+                    x1:0, y1:0,
+                    x2:1, y2:0,
+                    stop:0 rgba(100, 85, 140, 200),
+                    stop:1 rgba(130, 115, 170, 200)
+                );
+                border: 1px solid rgba(0, 0, 0, 230);
+                border-radius: 8px;
+                color: white;
+                font-weight: bold;
+                padding: 6px 12px;
+            }
+
+            QPushButton:hover {
+                border: 1px solid rgba(160, 140, 210, 255);
+                background: qlineargradient(
+                    spread:pad,
+                    x1:0, y1:0,
+                    x2:1, y2:0,
+                    stop:0 rgba(110, 95, 150, 220),
+                    stop:1 rgba(140, 125, 180, 220)
+                );
+            }
+        """)
+
         self.arrow_button.clicked.connect(self.toggle_equalizer_view)
 
         # Inject into container from UI file
