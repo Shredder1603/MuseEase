@@ -6,6 +6,8 @@ import os
 
 class Presenter:
     def __init__(self, stacked_widget):
+        self.tutorial_mode = False
+        
         self.stacked_widget = stacked_widget
         self.model = Model()
         self.main_menu = Main_Menu()
@@ -21,21 +23,27 @@ class Presenter:
         self.new_project_init()
 
     def main_menu_init(self):
+        self.main_menu.tutorial_button.clicked.connect(self.on_tutorial_requested) 
         self.main_menu.set_exit_callback(self.on_exit_requested)
         self.main_menu.set_open_saved_projects_callback(self.on_open_saved_projects_requested)
         self.main_menu.set_new_project_callback(self.on_new_project_requested)
-        self.main_menu.tutorial_button.clicked.connect(self.on_tutorial_requested) 
         
     def on_tutorial_requested(self):
-        self.tutorial = Tutorial(self)
-        self.stacked_widget.addWidget(self.tutorial)
-        self.stacked_widget.setCurrentWidget(self.tutorial)
+        self.tutorial_mode = True
+        
+        self.new_project = DAW(self)  
+        self.stacked_widget.addWidget(self.new_project)
 
-    def on_tutorial_closed(self):
-        if self.tutorial:
-            self.stacked_widget.removeWidget(self.tutorial)
-            self.tutorial = None
-            self.stacked_widget.setCurrentWidget(self.main_menu)
+        self.on_new_project_requested()
+        # self.tutorial = Tutorial(self)
+        # self.stacked_widget.addWidget(self.tutorial)
+        # self.stacked_widget.setCurrentWidget(self.tutorial)
+
+    # def on_tutorial_closed(self):
+    #     if self.tutorial:
+    #         self.stacked_widget.removeWidget(self.tutorial)
+    #         self.tutorial = None
+    #         self.stacked_widget.setCurrentWidget(self.main_menu)
 
     def saved_projects_init(self):
         if not self.saved_projects:
