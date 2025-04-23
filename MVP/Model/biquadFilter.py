@@ -64,7 +64,10 @@ class BiquadFilter:
 
     def process(self, x):
         y = self.b0 * x + self.b1 * self._x1 + self.b2 * self._x2 - self.a1 * self._y1 - self.a2 * self._y2
-
+        
+        if abs(y) < 1e-10:
+            y = 0.0
+            
         self._x2 = self._x1
         self._x1 = x
         self._y2 = self._y1

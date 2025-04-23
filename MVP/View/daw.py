@@ -252,6 +252,9 @@ class DAW(QMainWindow, QWidget):
         self.equalizer_frame.setVisible(False)
         self.equalizer_frame.setFixedHeight(350)
         self.equalizer_frame.setStyleSheet("background-color: white; border-top: 2px solid #ccc;")
+        
+        self.cached_eq_filters = None
+
 
 
         self.arrow_button = QPushButton("▲ EQ")
@@ -566,7 +569,8 @@ class DAW(QMainWindow, QWidget):
         if self.countoff_active:
             print("Countoff already in progress, ignoring new recording request")
             return
-
+        
+        self.cached_eq_filters = None
         self.countoff_active = True
         self.countoff_beats = 0
         self.countoff_timer.setInterval(int(60000 / self.bpm))  # Match the BPM
@@ -625,6 +629,7 @@ class DAW(QMainWindow, QWidget):
         self.current_container.setRect(0, 0, 50, self.track_height)  # Minimum width
         self.current_container.setPos(start_x, y_position)
         self.current_container.current_track = track_index
+        
         self.current_container.setBrush(QBrush(QColor(173, 216, 230, 100)))
         self.current_container.setPen(QPen(QColor(70, 130, 180, 200), 2))
         self.current_container.setZValue(5)
@@ -913,6 +918,7 @@ class DAW(QMainWindow, QWidget):
             self.playhead.setLine(self.paused_position, 0, self.paused_position, 5 * self.track_height)
             self.playhead.setVisible(True)
             self.playback_timer.start()
+            self.cached_eq_filters = None
             self.start_audio_playback()
             self.note_playback_timer.start()
             self.playback_stream.start()
@@ -937,6 +943,7 @@ class DAW(QMainWindow, QWidget):
             self.playback_start_time = time.perf_counter() - elapsed_time
             self.playhead.setVisible(True)
             self.playback_timer.start()
+            self.cached_eq_filters = None
             self.start_audio_playback()
             self.playback_stream.stop()  # Reset stream
             self.playback_stream.start()  # Restart to apply EQ
@@ -1113,10 +1120,10 @@ class DAW(QMainWindow, QWidget):
         Applies the equalizer filters to an audio chunk.
         Processes the chunk through all configured filters and returns the filtered result.
         """
-        if self.eq_filters is None:
-            self.eq_filters = self.equalizer_model.get_filters(sample_rate)
+        if self.cached_eq_filters is None:
+            self.cached_eq_filters = self.equalizer_model.get_filters(sample_rate)
 
-        filters = self.equalizer_model.get_filters(sample_rate)
+        filters = self.cached_eq_filters
         filtered = np.zeros_like(chunk)
 
         for i in range(len(chunk)):
