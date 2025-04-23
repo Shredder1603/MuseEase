@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1440</width>
-    <height>761</height>
+    <height>758</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -250,6 +250,17 @@
         <height>16777215</height>
        </size>
       </property>
+      <property name="styleSheet">
+       <string notr="true">background: qlineargradient(
+    spread:pad,
+    x1:0, y1:0,
+    x2:1, y2:0,
+    stop:0 rgba(50, 40, 70, 220),
+    stop:1 rgba(80, 70, 110, 220)
+);
+border: none;
+</string>
+      </property>
       <property name="title">
        <string/>
       </property>
@@ -293,10 +304,20 @@
         </widget>
        </item>
        <item row="0" column="0">
-        <widget class="QComboBox" name="instrument1"/>
+        <widget class="QComboBox" name="instrument1">
+         <property name="styleSheet">
+          <string notr="true">   background: grey;
+</string>
+         </property>
+        </widget>
        </item>
        <item row="7" column="0">
-        <widget class="QComboBox" name="instrument4"/>
+        <widget class="QComboBox" name="instrument4">
+         <property name="styleSheet">
+          <string notr="true">   background: grey;
+</string>
+         </property>
+        </widget>
        </item>
        <item row="8" column="0">
         <widget class="QSlider" name="volume4">
@@ -337,10 +358,20 @@
         </widget>
        </item>
        <item row="9" column="0">
-        <widget class="QComboBox" name="instrument5"/>
+        <widget class="QComboBox" name="instrument5">
+         <property name="styleSheet">
+          <string notr="true">    background: grey;
+</string>
+         </property>
+        </widget>
        </item>
        <item row="2" column="0">
-        <widget class="QComboBox" name="instrument2"/>
+        <widget class="QComboBox" name="instrument2">
+         <property name="styleSheet">
+          <string notr="true">   background: grey;
+</string>
+         </property>
+        </widget>
        </item>
        <item row="6" column="0">
         <widget class="QSlider" name="volume3">
@@ -362,7 +393,12 @@
         </widget>
        </item>
        <item row="5" column="0">
-        <widget class="QComboBox" name="instrument3"/>
+        <widget class="QComboBox" name="instrument3">
+         <property name="styleSheet">
+          <string notr="true">   background: grey;
+</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>

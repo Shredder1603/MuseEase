@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QLineEdit, QHBoxLayout, QMessageBox, QFileDialog, QGraphicsScene,
-                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog, QPushButton, QVBoxLayout, QFrame)
-from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction
+                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog, QPushButton, QVBoxLayout, QFrame, QLabel)
+from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction, QPixmap
 from PyQt6 import uic
 from PyQt6.QtCore import Qt, QTimer, QRectF, QMutex
 from .Notes import NotesWindow, SoundGenerator
@@ -83,7 +83,7 @@ class DAW(QMainWindow, QWidget):
         print(f"UI Path: {ui_path}")
         uic.loadUi(ui_path, self)
 
-        self.track_height = 80
+        self.track_height = 102
         self.base_note_width = 100
         self.note_height = 20
         self.current_x = 0
@@ -98,12 +98,15 @@ class DAW(QMainWindow, QWidget):
         self.track_scene = CustomGraphicsScene()
         self.track_scene.set_daw(self)  # Set the DAW reference
         self.trackView.setScene(self.track_scene)
+        self.trackView.setStyleSheet("background-color: transparent; border: none;")
         self.trackView.setInteractive(True)
         self.trackView.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         self.trackView.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.track_scene.selectionChanged.connect(self.update_track_selection_feedback)
         self.trackView.setMinimumHeight(5 * self.track_height + 50)  # Ensure all tracks are visible
         self.trackView.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.track_scene.setSceneRect(0, 0, self.trackView.viewport().width(), 5 * self.track_height)
+
 
         self.containers = []
         
@@ -261,7 +264,36 @@ class DAW(QMainWindow, QWidget):
         self.equalizer_model.reverb_updated.connect(self.equalizer_view.set_reverb)
         
         self.eq_filters = None
+        
+        bg_image_path = resource_path('MVP/View/UI/DAWbackground.jpg')  
+        print(f"Background Image Path: {bg_image_path}")  # Debug print
 
+        self.bg_label = QLabel(self.centralWidget())
+        self.bg_label.setScaledContents(True)
+        
+        # Check if the background image file exists
+        if os.path.exists(bg_image_path):
+            self.bg_pixmap = QPixmap(bg_image_path)
+            self.update_background()
+        else:
+            print(f"Warning: Background image '{bg_image_path}' not found.")
+
+        # Ensure background is placed behind all widgets
+        self.bg_label.lower()
+        self.bg_label.setGeometry(0, 0, self.centralWidget().width(), self.centralWidget().height())
+
+    def update_background(self):
+        """Scale the background image to fit the central widget size."""
+        if hasattr(self, 'bg_pixmap'):
+            # Use the central widget's size for scaling
+            self.bg_label.setGeometry(0, 0, self.centralWidget().width(), self.centralWidget().height())
+            scaled_pixmap = self.bg_pixmap.scaled(
+                self.centralWidget().width(),
+                self.centralWidget().height(),
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding  # Adjust to fill while keeping aspect ratio
+            )
+            self.bg_label.setPixmap(scaled_pixmap)
+            
     def keyPressEvent(self, event):
         '''
         Handle key presses, including Delete to remove selected track.
@@ -328,6 +360,7 @@ class DAW(QMainWindow, QWidget):
         track_pen = QPen(QColor(80, 80, 80))
         self.track_rects = []
 
+        # Create new track rectangles
         for i in range(5):
             track = QGraphicsRectItem(0, i * self.track_height, view_width, self.track_height)
             track.setBrush(track_brush)
@@ -338,6 +371,7 @@ class DAW(QMainWindow, QWidget):
             self.track_scene.addItem(track)
             self.track_rects.append(track)
 
+        # Draw measure lines and labels
         measure_pen = QPen(QColor(100, 100, 100), 2, Qt.PenStyle.SolidLine)
         beat_tick_pen = QPen(QColor(100, 100, 100), 1, Qt.PenStyle.DotLine)
         measures = int(view_width / self.measure_width) + 2
@@ -357,8 +391,14 @@ class DAW(QMainWindow, QWidget):
 
         self.track_scene.setSceneRect(0, 0, view_width, 5 * self.track_height)
 
-        # Re-enable signals and update UI feedback
+        # Restore the selection state manually
+        if self.selected_track_index >= 0 and self.selected_track_index < len(self.track_rects):
+            self.track_rects[self.selected_track_index].setSelected(True)
+
+        # Re-enable signals after the scene is fully rebuilt
         self.track_scene.blockSignals(False)
+
+        # Now update the visual feedback for the selected track
         self.update_track_selection_feedback()
 
 
@@ -376,6 +416,8 @@ class DAW(QMainWindow, QWidget):
         '''
         super().resizeEvent(event)
         self.update_tracks_and_markers()
+        self.update_background()
+        
         if self.notes_window and self.recording:
             self.snap_notes_window()
 
