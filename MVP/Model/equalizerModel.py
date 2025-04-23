@@ -88,7 +88,7 @@ class EqualizerModel(QObject):
                 center = (hp + lp) / 2
                 bw = lp - hp
                 Q = max(0.7, min(2.0, bw / center))
-                filters.append(BiquadFilter.create_peaking_eq(sample_rate, center, gain, Q=Q))
+                filters.append(BiquadFilter.create_mid_shelf(sample_rate, center, gain, Q=Q))
             elif band == "High (4000-20000 Hz)":
                 filters.append(BiquadFilter.create_high_shelf(sample_rate, hp, gain, Q=0.707))
             

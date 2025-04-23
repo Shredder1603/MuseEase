@@ -1094,7 +1094,7 @@ class DAW(QMainWindow, QWidget):
 
             # Use peak filter for mid, and shelves for low/high
             if band.startswith("Mid"):
-                biquad = BiquadFilter.create_peaking_eq(samplerate, center_freq, gain_db, Q=bandwidth/center_freq)
+                biquad = BiquadFilter.create_mid_shelf(samplerate, center_freq, gain_db, Q=bandwidth/center_freq)
             elif band.startswith("Low"):
                 biquad = BiquadFilter.create_low_shelf(samplerate, center_freq, gain_db, Q=0.707)
             elif band.startswith("High"):
