@@ -517,10 +517,6 @@ class DAW(QMainWindow, QWidget):
 
         self.track_scene.setSceneRect(0, 0, view_width, 5 * self.track_height)
 
-        # Restore the selection state manually
-        if self.selected_track_index >= 0 and self.selected_track_index < len(self.track_rects):
-            self.track_rects[self.selected_track_index].setSelected(True)
-
         # Re-enable signals after the scene is fully rebuilt
         self.track_scene.blockSignals(False)
 
@@ -895,6 +891,9 @@ class DAW(QMainWindow, QWidget):
         self.current_x = max([c.x() + c.rect().width() for c in self.containers], default=0)
         self.update_time_display()
         self.autosave_file = "./Saves/" + muse_file + ".muse"
+
+
+
 
     def calculate_note_position(self, note_name):
         '''
