@@ -1,26 +1,27 @@
 import re
-from PyQt6.QtWidgets import QLineEdit, QMenu, QAction
 
-# Hardcoded EQ keyword → action mappings
 EQ_PRESETS = {
-    "bass": ["bassy", "deep", "low end", "thumpy", "rumble"],
-    "treble": ["tinny", "thin", "bright", "sharp", "sizzly"]
+    "bass": [r"\bbassy\b", r"\bdeep\b", r"\blow\s*end\b", r"\brumbl\w*", r"\bthump\w*"],
+    "treble": [r"\btin(ny)?\b", r"\bthin\b", r"\bbright\b", r"\bsharp\b", r"\bsizzl\w*"]
 }
 
 def apply_eq_from_text(eq_model, text):
     """
     Applies EQ adjustments based on user text input using EqualizerModel.
     """
-    lowered = text.lower()
+    text = text.lower()
 
-    # Bass boost
-    if any(re.search(rf"\b{word}\b", lowered) for word in EQ_PRESETS["bass"]):
+    if any(re.search(pattern, text) for pattern in EQ_PRESETS["bass"]):
+        print("AI EQ: Applying Bass Boost + Suppress Treble & Mid")
         eq_model.set_gain("Low (20-250 Hz)", 6)
-        print("Applying bass boost")
+        eq_model.set_gain("Mid (250-4000 Hz)", -4)
+        eq_model.set_gain("High (4000-20000 Hz)", -6)
 
-    # Treble boost
-    if any(re.search(rf"\b{word}\b", lowered) for word in EQ_PRESETS["treble"]):
-        eq_model.set_gain("High (4000-20000 Hz)", 5)
-        print("Applying treble boost")
+    elif any(re.search(pattern, text) for pattern in EQ_PRESETS["treble"]):
+        print("AI EQ: Applying Treble Boost + Suppress Mid & Bass")
+        eq_model.set_gain("Low (20-250 Hz)", -5)
+        eq_model.set_gain("Mid (250-4000 Hz)", -3)
+        eq_model.set_gain("High (4000-20000 Hz)", 6)
 
-    # Future: Add reverb, echo, notch filtering, etc.
+    else:
+        print("No EQ match found in input.")

@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QLineEdit, QHBoxLayout, QMessageBox, QFileDialog, QGraphicsScene,
-                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog, QPushButton, QVBoxLayout, QFrame, QLabel)
+                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog, QPushButton, QVBoxLayout, QFrame, QLabel, QMenu)
 from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction, QPixmap
 from PyQt6 import uic
 from PyQt6.QtCore import Qt, QTimer, QRectF, QMutex, QPoint
@@ -18,6 +18,7 @@ from paths import resource_path
 from .equalizerView import EqualizerView
 from ..Model.equalizerModel import EqualizerModel 
 from MVP.Model.biquadFilter import BiquadFilter
+from MVP.Model.ai_eq import apply_eq_from_text
 from scipy.signal import butter, lfilter
 import sys
 import traceback
@@ -46,7 +47,11 @@ class CustomGraphicsScene(QGraphicsScene):
         x_pos = pos.x()
         y_pos = pos.y()
         print(f"Click at scene coordinates: x={x_pos}, y={y_pos}")
-
+        
+        if event.button() != Qt.MouseButton.LeftButton:
+            super().mousePressEvent(event)
+            return
+        
         # Check if a DraggableContainer was clicked
         items = self.items(pos)
         for item in items:
@@ -1524,6 +1529,34 @@ class DAW(QMainWindow, QWidget):
             finally:
                 temp_wav.close()
                 os.remove(temp_wav.name)
+    
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+
+        ai_eq_action = QAction("AI EQ", self)
+        menu.addAction(ai_eq_action)
+
+        def launch_textbox():
+            self.eq_textbox = QLineEdit(self)
+            self.eq_textbox.setPlaceholderText("Describe the sound (e.g. 'make it bassy')")
+            self.eq_textbox.setGeometry(event.globalPos().x(), event.globalPos().y(), 300, 30)
+            self.eq_textbox.setStyleSheet("""
+                background-color: #1c1c1c;
+                color: white;
+                padding: 6px;
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            """)
+            self.eq_textbox.returnPressed.connect(lambda: self.handle_ai_eq(self.eq_textbox.text(), self.eq_textbox))
+            self.eq_textbox.show()
+            self.eq_textbox.setFocus()
+
+        ai_eq_action.triggered.connect(launch_textbox)
+        menu.exec(event.globalPos())
+
+    def handle_ai_eq(self, text, textbox):
+        apply_eq_from_text(self.equalizer_model, text)
+        self.eq_textbox.deleteLater()
 
     def save_project(self):
         '''
