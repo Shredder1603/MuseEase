@@ -329,7 +329,7 @@ class DAW(QMainWindow, QWidget):
          # Tutorial
 
         self.tutorial_start = QPushButton("Welcome to the Interactive Tutorial \n\n Click Here to Begin", self)
-        self.tutorial_start.setGeometry(600, 120, 140, 40)
+        self.tutorial_start.setGeometry(600, 100, 140, 40)
         self.tutorial_start.resize(self.tutorial_start.sizeHint())
         self.tutorial_start.hide()
         
@@ -339,32 +339,32 @@ class DAW(QMainWindow, QWidget):
         self.tutorial_instument.hide()
         
         self.tutorial_record = QPushButton("⬆\nClick to start recording\n", self)
-        self.tutorial_record.setGeometry(390, 90, 140, 40)
+        self.tutorial_record.setGeometry(330, 90, 140, 40)
         self.tutorial_record.resize(self.tutorial_record.sizeHint())
         self.tutorial_record.hide()
         
         self.tutorial_metronome = QPushButton("⬆\nClick for a metronome\n", self)
-        self.tutorial_metronome.setGeometry(600, 90, 140, 40)
+        self.tutorial_metronome.setGeometry(490, 90, 140, 40)
         self.tutorial_metronome.resize(self.tutorial_metronome.sizeHint())
         self.tutorial_metronome.hide()
         
         self.tutorial_track = QPushButton("\nDrag track location\n⬇", self)
-        self.tutorial_track.setGeometry(700, 140, 140, 40)
+        self.tutorial_track.setGeometry(700, 100, 140, 40)
         self.tutorial_track.resize(self.tutorial_track.sizeHint())
         self.tutorial_track.hide()
         
         self.tutorial_play = QPushButton("⬆\nClick to play recording\n", self)
-        self.tutorial_play.setGeometry(490, 90, 140, 40)
+        self.tutorial_play.setGeometry(410, 90, 140, 40)
         self.tutorial_play.resize(self.tutorial_play.sizeHint())
         self.tutorial_play.hide()
         
         self.tutorial_time = QPushButton("⬆\nForward/Rewind track\n", self)
-        self.tutorial_time.setGeometry(240, 90, 140, 40)
+        self.tutorial_time.setGeometry(210, 90, 140, 40)
         self.tutorial_time.resize(self.tutorial_time.sizeHint())
         self.tutorial_time.hide()
         
         self.tutorial_end = QPushButton("\n\nEnd Tutorial\n\n", self)
-        self.tutorial_end.setGeometry(700, 120, 140, 40)
+        self.tutorial_end.setGeometry(700, 80, 140, 40)
         self.tutorial_end.resize(self.tutorial_end.sizeHint())
         self.tutorial_end.hide()
         
