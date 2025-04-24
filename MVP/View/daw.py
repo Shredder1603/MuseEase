@@ -325,7 +325,6 @@ class DAW(QMainWindow, QWidget):
 
         self.tutorial_start = QPushButton("Welcome to the Interactive Tutorial \n\n Click Here to Begin", self)
         self.tutorial_start.setGeometry(600, 100, 140, 40)
-        self.tutorial_start.setStyleSheet("background-color: black;")
         self.tutorial_start.resize(self.tutorial_start.sizeHint())
         self.tutorial_start.hide()
         
@@ -360,7 +359,6 @@ class DAW(QMainWindow, QWidget):
         self.tutorial_time.hide()
         
         self.tutorial_end = QPushButton("\n\nEnd Tutorial\n\n", self)
-        self.tutorial_end.setStyleSheet("background-color: black;")
         self.tutorial_end.setGeometry(700, 80, 140, 40)
         self.tutorial_end.resize(self.tutorial_end.sizeHint())
         self.tutorial_end.hide()
