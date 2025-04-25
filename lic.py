@@ -1,5 +1,5 @@
 import json 
-with open("pygame.json") as fp:
+with open("sbod.json") as fp:
     data = json.load(fp)
     
 licenses = set()
