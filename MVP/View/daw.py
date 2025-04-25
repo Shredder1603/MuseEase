@@ -20,6 +20,8 @@ from ..Model.equalizerModel import EqualizerModel
 from MVP.Model.biquadFilter import BiquadFilter
 from MVP.Model.ai_eq import apply_eq_from_text
 from scipy.signal import butter, lfilter
+from MVP.Model.echo import apply_echo
+from MVP.Model.reverb import ReverbProcessor
 import sys
 import traceback
 
@@ -118,11 +120,11 @@ class DAW(QMainWindow, QWidget):
         self.time_layout = QHBoxLayout(self.timeView)
         self.timeView.setFixedHeight(60)
         self.measure_edit = QLineEdit(f"Measure: {self.current_measure}:{self.current_beat}")
-        self.measure_edit.setEnabled(False)
+        self.measure_edit.setEnabled(True)
         self.tempo_edit = QLineEdit(f"Tempo: {self.bpm} BPM")
-        self.tempo_edit.setEnabled(False)
+        self.tempo_edit.setEnabled(True)
         self.time_edit = QLineEdit(f"Time: {self.time_signature}")
-        self.time_edit.setEnabled(False)
+        self.time_edit.setEnabled(True)
         self.time_layout.addWidget(self.measure_edit)
         self.time_layout.addSpacing(20)
         self.time_layout.addWidget(self.tempo_edit)
@@ -188,7 +190,7 @@ class DAW(QMainWindow, QWidget):
         # Initialize SoundGenerator and set up instrument selection
         self.sound = SoundGenerator()
         self.available_instruments = self.sound.available_instruments
-        self.track_instruments = [self.available_instruments[0] if self.available_instruments else "Piano"] * 5
+        self.track_instruments = ["Piano"] * 5 if "Piano" in self.available_instruments else [self.available_instruments[0]] * 5
         self.setup_instrument_selection()
 
         self.playback_stream = sd.OutputStream(
@@ -259,6 +261,8 @@ class DAW(QMainWindow, QWidget):
         self.equalizer_frame.setStyleSheet("background-color: white; border-top: 2px solid #ccc;")
         
         self.cached_eq_filters = None
+        self.reverb_processor = ReverbProcessor()
+
 
 
 
@@ -1139,6 +1143,11 @@ class DAW(QMainWindow, QWidget):
                 x = f.process(x)
 
             filtered[i] = x
+        
+        reverb_percent = max(self.equalizer_model.settings[b]["reverb"] for b in self.equalizer_model.bands)
+        if reverb_percent > 0:
+            self.reverb_processor.wet_level = reverb_percent / 100.0
+            filtered = self.reverb_processor.process(filtered)
 
         return filtered
 
