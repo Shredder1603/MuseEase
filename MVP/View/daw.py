@@ -416,6 +416,7 @@ class DAW(QMainWindow, QWidget):
         
     def tutorial_end_next(self):
         self.tutorial_end.hide()
+        self.tutorial_mode = False
 
     def update_background(self):
         """Scale the background image to fit the central widget size."""
