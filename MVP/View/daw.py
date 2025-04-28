@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QLineEdit, QHBoxLayout, QMess
                              QGraphicsRectItem, QGraphicsItemGroup, QInputDialog, QPushButton, QVBoxLayout, QFrame, QLabel, QMenu)
 from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction, QPixmap
 from PyQt6 import uic
-from PyQt6.QtCore import Qt, QTimer, QRectF, QMutex, QPoint
+from PyQt6.QtCore import Qt, QTimer, QRectF, QMutex
 from .Notes import NotesWindow, SoundGenerator
 from .draggable_container import DraggableContainer
 import sounddevice as sd
@@ -16,13 +16,11 @@ import numpy as np
 import os
 from paths import resource_path
 from .equalizerView import EqualizerView
-from ..Model.equalizerModel import EqualizerModel 
+from MuseEase.MVP.Model.Mixing.equalizerModel import EqualizerModel
 from MVP.Model.biquadFilter import BiquadFilter
 from MVP.Model.ai_eq import apply_eq_from_text
-from scipy.signal import butter, lfilter
-from MVP.Model.echo import apply_echo
+from scipy.signal import butter
 from MVP.Model.reverb import ReverbProcessor
-import sys
 import traceback
 
 class CustomGraphicsScene(QGraphicsScene):
