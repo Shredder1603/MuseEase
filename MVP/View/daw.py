@@ -17,11 +17,11 @@ import numpy as np
 import os
 from paths import resource_path
 from .equalizerView import EqualizerView
-from MuseEase.MVP.Model.Mixing.equalizerModel import EqualizerModel
-from MVP.Model.biquadFilter import BiquadFilter
-from MVP.Model.ai_eq import apply_eq_from_text
+from MVP.Model.Mixing.equalizerModel import EqualizerModel
+from MVP.Model.Mixing.biquadFilter import BiquadFilter
+from MVP.Model.Mixing.ai_eq import apply_eq_from_text
 from scipy.signal import butter
-from MVP.Model.reverb import ReverbProcessor
+from MVP.Model.Mixing.reverb import ReverbProcessor
 import traceback
 
 class CustomGraphicsScene(QGraphicsScene):
@@ -1182,6 +1182,18 @@ class DAW(QMainWindow, QWidget):
 
         return filtered
 
+
+    # def apply_echo(self, data, frames, playpos, sample_rate):
+    #     start_pos = playpos - frames * 4
+    #     end_pos = playpos + frames
+    #     if start_pos < 0:
+    #         start_pos = 0
+    #     chunk = data[start_pos:end_pos]
+    #     if len(chunk) < (5 * frames):
+    #         chunk = np.pad(chunk, (0, (5 * frames) - len(chunk)), mode='constant')
+    #
+    #     echo = apply_echo(chunk, decay, sample_rate, frames)
+    #     return echo
 
     
     def playback_audio_callback(self, outdata, frames, time_info, status):

@@ -8,6 +8,8 @@ class EqualizerView(QWidget):
     lowpass_freq_changed = pyqtSignal(str, int)  # (band, value)
     highpass_freq_changed = pyqtSignal(str, int)  # (band, value)
     reverb_changed = pyqtSignal(str, int)  # (band, value)
+    echo_changed = pyqtSignal(int)  # (value)
+    pan_changed = pyqtSignal(int)  # (value)
     ai_input_submitted = pyqtSignal(str)  # (user_input)
 
     def __init__(self, parent=None):
@@ -24,6 +26,7 @@ class EqualizerView(QWidget):
         # Frequency bands
         self.bands = ["Low (20-250 Hz)", "Mid (250-4000 Hz)", "High (4000-20000 Hz)"]
         self.sliders = {band: {} for band in self.bands}
+        self.echo = None
 
         # Define band-specific frequency ranges
         self.highpass_ranges = {
@@ -116,6 +119,37 @@ class EqualizerView(QWidget):
             self.layout.addWidget(content)
             self.sections.append((header, content))
 
+        # echo
+        echo_label = QLabel("Echo (%): 0")
+        echo_slider = QSlider(Qt.Orientation.Horizontal)
+        echo_slider.setRange(0, 100)
+        echo_slider.setValue(0)
+        echo_slider.valueChanged.connect(
+            lambda value, b=band, l=echo_label: self.update_slider_label(b, 'echo', value, l))
+        echo_slider.valueChanged.connect(lambda value: self.echo_changed.emit(value))
+
+        echo_layout = QHBoxLayout()
+        echo_layout.addWidget(echo_label)
+        echo_layout.addWidget(echo_slider)
+        self.echo = echo_slider
+
+        #  panning
+        pan_label = QLabel("Pan (L/R): 0")
+        pan_slider = QSlider(Qt.Orientation.Horizontal)
+        pan_slider.setRange(-100, 100)
+        pan_slider.setValue(0)
+        pan_slider.valueChanged.connect(
+            lambda value, b=band, l=pan_label: self.update_slider_label(b, 'pan', value, l))
+        pan_slider.valueChanged.connect(lambda value: self.pan_changed.emit(value))
+
+        pan_layout = QHBoxLayout()
+        pan_layout.addWidget(pan_label)
+        pan_layout.addWidget(pan_slider)
+        self.pan = pan_slider
+
+        self.layout.addLayout(pan_layout)
+        self.layout.addLayout(echo_layout)
+
         self.layout.addStretch()
 
     def update_slider_label(self, band, param, value, label):
@@ -127,6 +161,10 @@ class EqualizerView(QWidget):
             label.setText(f"High-Pass (Hz): {value}")
         elif param == "reverb":
             label.setText(f"Reverb (%): {value}")
+        elif param == "echo":
+            label.setText(f"Echo (%): {value}")
+        elif param == "pan":
+            label.setText(f"Pan (L/R): {value}")
 
     def toggle_section(self, band, checked):
         for header, content in self.sections:
@@ -158,3 +196,11 @@ class EqualizerView(QWidget):
     @pyqtSlot(str, int)
     def set_reverb(self, band, value):
         self.sliders[band]["reverb"].setValue(value)
+
+    @pyqtSlot(int)
+    def set_echo(self, value):
+        self.echo.setValue(value)
+
+    @pyqtSlot(int)
+    def set_pan(self, value):
+        self.pan.setValue(value)
