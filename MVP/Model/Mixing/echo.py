@@ -25,15 +25,15 @@ def apply_echo(chunks, decay, sample_rate, frame):
         
     return new_echo_chunk
 
-if __name__ == "__main__":
-    frame = 25
-    total_chunks = 5
-    decay = 0.5
-    sample_rate = 44100
-    chunks = np.ones((4, 25)).astype(float)
+# if __name__ == "__main__":
+#     frame = 25
+#     total_chunks = 5
+#     decay = 0.5
+#     sample_rate = 44100
+#     chunks = np.ones((4, 25)).astype(float)
     
-    print("Original Chunks:\n", chunks)
+#     print("Original Chunks:\n", chunks)
 
-    echoed = apply_echo(chunks, decay, sample_rate, frame)
+#     echoed = apply_echo(chunks, decay, sample_rate, frame)
 
-    print("\nEchoed Output:\n", echoed)
+#     print("\nEchoed Output:\n", echoed)
