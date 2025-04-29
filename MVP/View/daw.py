@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QLineEdit, QHBoxLayout, QMessageBox, QFileDialog, QGraphicsScene,
-                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog, QPushButton, QVBoxLayout, QFrame, QLabel, QMenu)
+                             QGraphicsRectItem, QGraphicsItemGroup, QInputDialog, QPushButton, QVBoxLayout, QFrame, QLabel, QMenu,
+                             QApplication)
 from PyQt6.QtGui import QBrush, QPen, QColor, QIcon, QFont, QPainter, QAction, QPixmap
 from PyQt6 import uic
 from PyQt6.QtCore import Qt, QTimer, QRectF, QMutex
@@ -329,92 +330,123 @@ class DAW(QMainWindow, QWidget):
         self.bg_label.setGeometry(0, 0, self.centralWidget().width(), self.centralWidget().height())
         
          # Tutorial
+         
+        screen = QApplication.primaryScreen()
+        size = screen.size()
+        screen_width = size.width()
+        screen_height = size.height()
 
-        self.tutorial_start = QPushButton("Welcome to the Interactive Tutorial \n\n Click Here to Begin", self)
-        self.tutorial_start.setGeometry(600, 100, 140, 40)
-        self.tutorial_start.resize(self.tutorial_start.sizeHint())
-        self.tutorial_start.hide()
-        
+        # --- Create and center each tutorial button ---
+
+        self.tutorial_start = QPushButton(
+            "Welcome to the Interactive Tutorial \n\n Click Here to Begin", self
+        )
+        self.center_button(self.tutorial_start, screen_width // 2, screen_height // 7)
+
         self.tutorial_instument = QPushButton("\n⬅  Start by selecting an instrument\n", self)
-        self.tutorial_instument.setGeometry(185, 120, 140, 40)
-        self.tutorial_instument.resize(self.tutorial_instument.sizeHint())
-        self.tutorial_instument.hide()
+        self.center_button(self.tutorial_instument, int(screen_width // 4.5), screen_height // 6)
         
+        self.tutorial_track_sel = QPushButton("Select a track to record\n⬇", self)
+        self.center_button(self.tutorial_track_sel, screen_width // 2, screen_height // 7)
+
         self.tutorial_record = QPushButton("⬆\nClick to start recording\n", self)
-        self.tutorial_record.setGeometry(330, 90, 140, 40)
-        self.tutorial_record.resize(self.tutorial_record.sizeHint())
-        self.tutorial_record.hide()
-        
+        self.center_button(self.tutorial_record, int(screen_width // 3.5), screen_height // 7)
+
         self.tutorial_metronome = QPushButton("⬆\nClick for a metronome\n", self)
-        self.tutorial_metronome.setGeometry(490, 90, 140, 40)
-        self.tutorial_metronome.resize(self.tutorial_metronome.sizeHint())
-        self.tutorial_metronome.hide()
-        
+        self.center_button(self.tutorial_metronome, int(screen_width // 2.51), screen_height // 7)
+
         self.tutorial_track = QPushButton("\nDrag track location\n⬇", self)
-        self.tutorial_track.setGeometry(700, 100, 140, 40)
-        self.tutorial_track.resize(self.tutorial_track.sizeHint())
-        self.tutorial_track.hide()
-        
+        self.center_button(self.tutorial_track, screen_width // 2, screen_height // 7)
+
         self.tutorial_play = QPushButton("⬆\nClick to play recording\n", self)
-        self.tutorial_play.setGeometry(410, 90, 140, 40)
-        self.tutorial_play.resize(self.tutorial_play.sizeHint())
-        self.tutorial_play.hide()
-        
+        self.center_button(self.tutorial_play, int(screen_width // 2.93), screen_height // 7)
+
         self.tutorial_time = QPushButton("⬆\nForward/Rewind track\n", self)
-        self.tutorial_time.setGeometry(210, 90, 140, 40)
-        self.tutorial_time.resize(self.tutorial_time.sizeHint())
-        self.tutorial_time.hide()
+        self.center_button(self.tutorial_time, int(screen_width // 4.9), screen_height // 7)
         
+        self.tutorial_eq = QPushButton("\nEqualizer\n⬇", self)
+        self.center_button(self.tutorial_eq, int(screen_width * 0.57), int(screen_height * 0.88))
+
+        self.tutorial_ai = QPushButton("\nRight Click for AI prompt\n", self)
+        self.center_button(self.tutorial_ai, screen_width // 2, screen_height // 7)
+
         self.tutorial_end = QPushButton("\n\nEnd Tutorial\n\n", self)
-        self.tutorial_end.setGeometry(700, 80, 140, 40)
-        self.tutorial_end.resize(self.tutorial_end.sizeHint())
-        self.tutorial_end.hide()
-        
-        
-        if (self.presenter.tutorial_mode):
+        self.center_button(self.tutorial_end, screen_width // 2, screen_height // 7)
+
+        # --- Connect buttons to their slots ---
+
+        if self.presenter.tutorial_mode:
             self.tutorial_start.show()
-        
+
         self.tutorial_start.clicked.connect(self.tutorial_start_next)
         self.tutorial_instument.clicked.connect(self.tutorial_instrument_next)
+        self.tutorial_track_sel.clicked.connect(self.tutorial_track_sel_next)
         self.tutorial_record.clicked.connect(self.tutorial_record_next)
         self.tutorial_metronome.clicked.connect(self.tutorial_metronome_next)
         self.tutorial_track.clicked.connect(self.tutorial_track_next)
         self.tutorial_play.clicked.connect(self.tutorial_play_next)
         self.tutorial_time.clicked.connect(self.tutorial_time_next)
+        self.tutorial_eq.clicked.connect(self.tutorial_eq_next)
+        self.tutorial_ai.clicked.connect(self.tutorial_ai_next)
         self.tutorial_end.clicked.connect(self.tutorial_end_next)
-            
+
+    # --- Button click slot methods ---
 
     def tutorial_start_next(self):
         self.tutorial_start.hide()
         self.tutorial_instument.show()
-        
+
     def tutorial_instrument_next(self):
         self.tutorial_instument.hide()
-        self.tutorial_record.show()
+        self.tutorial_track_sel.show()
         
+    def tutorial_track_sel_next(self):
+        self.tutorial_track_sel.hide()
+        self.tutorial_record.show()
+
     def tutorial_record_next(self):
         self.tutorial_record.hide()
         self.tutorial_metronome.show()
-        
+
     def tutorial_metronome_next(self):
         self.tutorial_metronome.hide()
         self.tutorial_track.show()
-        
+
     def tutorial_track_next(self):
         self.tutorial_track.hide()
         self.tutorial_play.show()
-        
+
     def tutorial_play_next(self):
         self.tutorial_play.hide()
         self.tutorial_time.show()
-        
+
     def tutorial_time_next(self):
         self.tutorial_time.hide()
-        self.tutorial_end.show()
+        self.tutorial_eq.show()
         
+    def tutorial_eq_next(self):
+        self.tutorial_eq.hide()
+        self.tutorial_ai.show()
+        
+    def tutorial_ai_next(self):
+        self.tutorial_ai.hide()
+        self.tutorial_end.show()
+
     def tutorial_end_next(self):
         self.tutorial_end.hide()
         self.tutorial_mode = False
+        
+    def center_button(self, button, center_x, center_y):
+        button.resize(button.sizeHint())
+        button_width = button.width()
+        button_height = button.height()
+        button.setGeometry(
+            center_x - button_width // 2,
+            center_y - button_height // 2,
+            button_width,
+            button_height
+        )
+        button.hide()
 
     def update_background(self):
         """Scale the background image to fit the central widget size."""
