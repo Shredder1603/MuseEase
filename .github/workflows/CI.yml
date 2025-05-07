@@ -120,7 +120,7 @@ jobs:
           files: |
             dist/MuseEase.exe
             # dist/MuseEase.app.zip  # Commented out for macOS artifact
-          tag_name: v0.0.${{ github.run_number }}
+          tag_name: v1.0.${{ github.run_number }}
           release_name: "PyQt App v1.0.${{ github.run_number }}"
           body: "Latest release of MuseEase"
           draft: false
